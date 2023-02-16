@@ -95,16 +95,14 @@ pub const NodeDocs = Docs{
     \\* `AccountFlags.debits_must_not_exceed_credits`
     \\* `AccountFlags.credits_must_not_exceed_credits`
     \\
-    \\For example, to link `account0` and `account1`, where `account0`
-    \\additionally has the `debits_must_not_exceed_credits` constraint:
-    \\
-    \\```js
+    ,
+
+    .account_flags_example = 
     \\const account0 = { ... account values ... };
     \\const account1 = { ... account values ... };
     \\account0.flags = AccountFlags.linked | AccountFlags.debits_must_not_exceed_credits;
     \\// Create the account
     \\const accountErrors = client.createAccounts([account0, account1]);
-    \\```
     ,
     .create_accounts_errors_example = 
     \\const accountErrors = await client.createAccounts([account1, account2, account3]);
@@ -129,7 +127,21 @@ pub const NodeDocs = Docs{
     .lookup_accounts_example = 
     \\// account 137n exists, 138n does not
     \\const accounts = await client.lookupAccounts([137n, 138n]);
-    \\console.log(accounts);
+    \\/* console.log(accounts);
+    \\ * [{
+    \\ *   id: 137n,
+    \\ *   user_data: 0n,
+    \\ *   reserved: Buffer,
+    \\ *   ledger: 1,
+    \\ *   code: 718,
+    \\ *   flags: 0,
+    \\ *   debits_pending: 0n,
+    \\ *   debits_posted: 0n,
+    \\ *   credits_pending: 0n,
+    \\ *   credits_posted: 0n,
+    \\ *   timestamp: 1623062009212508993n,
+    \\ * }]
+    \\ */
     ,
 
     .create_transfers_example = 

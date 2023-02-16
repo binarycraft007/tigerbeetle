@@ -264,6 +264,12 @@ const Generator = struct {
         }
 
         mw.header(2, "Creating a Client");
+        mw.paragraph(
+            \\A client is created with a cluster ID and replica
+            \\addresses for all replicas in the cluster. The cluster
+            \\ID and replica addresses are both chosen by the system that
+            \\starts the TigerBeetle cluster.
+        );
         mw.code(language.markdown_name, language.client_object_example);
         mw.paragraph(language.client_object_documentation);
 
@@ -290,6 +296,12 @@ const Generator = struct {
         );
         mw.paragraph(language.account_flags_details);
 
+        mw.paragraph(
+            \\For example, to link `account0` and `account1`, where `account0`
+            \\additionally has the `debits_must_not_exceed_credits` constraint:
+        );
+        mw.code(language.markdown_name, language.account_flags_example);
+
         mw.header(3, "Response and Errors");
         mw.paragraph(
             \\The response is an empty array if all accounts were
@@ -304,12 +316,18 @@ const Generator = struct {
         );
 
         mw.code(language.markdown_name, language.create_accounts_errors_example);
+        mw.paragraph(
+            \\The example above shows that the account in index 1 failed
+            \\with error 1. This error here means that `account1` and
+            \\`account3` were created successfully. But `account2` was not
+            \\created.
+        );
         mw.paragraph(language.create_accounts_errors_documentation);
 
         mw.header(2, "Account Lookup");
         mw.paragraph(
             \\Account lookup is batched, like account creation. Pass
-            \\in all IDs to fetch, and matched accounts are returned.
+            \\in all IDs to fetch. The account for each matched ID is returned.
             \\
             \\If no account matches an ID, no object is returned for
             \\that account. So the order of accounts in the response is
@@ -326,6 +344,7 @@ const Generator = struct {
             \\See details for transfer fields in the [Transfers
             \\reference](https://docs.tigerbeetle.com/reference/transfers).
         );
+        mw.code(language.markdown_name, language.create_transfers_example);
 
         mw.header(3, "Response and Errors");
         mw.paragraph(
@@ -346,10 +365,10 @@ const Generator = struct {
         );
         mw.paragraph(language.create_transfers_errors_documentation);
 
-        mw.header(3, "Batching");
+        mw.header(2, "Batching");
         mw.paragraph(
             \\TigerBeetle performance is maximized when you batch
-            \\inserts. The client does not do this automatically for
+            \\API requests. The client does not do this automatically for
             \\you. So, for example, you *can* insert 1 million transfers
             \\one at a time like so:
         );
@@ -384,6 +403,7 @@ const Generator = struct {
 pub fn main() !void {
     var args = std.process.args();
     var skipLanguage = [_]bool{false} ** languages.len;
+    var validate = true;
     while (args.nextPosix()) |arg| {
         if (std.mem.eql(u8, arg, "--only")) {
             var filter = args.nextPosix().?;
@@ -393,6 +413,10 @@ pub fn main() !void {
                     skipLanguage[i] = false;
                 }
             }
+        }
+
+        if (std.mem.eql(u8, arg, "--no-validate")) {
+            validate = false;
         }
     }
 
@@ -410,7 +434,9 @@ pub fn main() !void {
 
         var generator = Generator{ .allocator = allocator, .language = language };
         generator.print("Validating");
-        try generator.validate();
+        if (validate) {
+            try generator.validate();
+        }
 
         generator.print("Generating");
         try generator.generate(&mw);

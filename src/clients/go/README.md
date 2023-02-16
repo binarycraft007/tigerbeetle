@@ -64,6 +64,11 @@ showing many features of the client.
 
 ## Creating a Client
 
+A client is created with a cluster ID and replica
+addresses for all replicas in the cluster. The cluster
+ID and replica addresses are both chosen by the system that
+starts the TigerBeetle cluster.
+
 ```go
 client, err := tb.NewClient(0, []string{"3000"}, 1)
 if err != nil {
@@ -159,6 +164,11 @@ for (const error of errors) {
 }
 ```
 
+The example above shows that the account in index 1 failed
+with error 1. This error here means that `account1` and
+`account3` were created successfully. But `account2` was not
+created.
+
 To handle errors you can either 1) exactly match error codes returned
 from `client.createAccounts` with enum values in the
 `CreateAccountError` object, or you can 2) look up the error code in
@@ -167,7 +177,7 @@ the `CreateAccountError` object for a human-readable string.
 ## Account Lookup
 
 Account lookup is batched, like account creation. Pass
-in all IDs to fetch, and matched accounts are returned.
+in all IDs to fetch. The account for each matched ID is returned.
 
 If no account matches an ID, no object is returned for
 that account. So the order of accounts in the response is
@@ -193,6 +203,28 @@ This creates a journal entry between two accounts.
 See details for transfer fields in the [Transfers
 reference](https://docs.tigerbeetle.com/reference/transfers).
 
+```go
+transfer := tb_types.Transfer{
+	ID:              uint128("1"),
+	DebitAccountID:  uint128("1"),
+	CreditAccountID: uint128("2"),
+	Ledger:          1,
+	Code:            1,
+	Amount:          10,
+}
+
+transfersRes, err := client.CreateTransfers([]tb_types.Transfer{transfer})
+if err != nil {
+	log.Printf("Error creating transfer batch: %s", err)
+	return
+}
+
+for _, err := range transfersRes {
+	log.Printf("Batch transfer at %d failed to create: %s", err.Index, err.Result)
+	return
+}
+```
+
 ### Response and Errors
 
 The response is an empty array if all transfers were created
@@ -208,10 +240,10 @@ The example above shows that the transfer in index 1 failed with
 error 1. This error here means that `transfer1` and `transfer3` were
 created successfully. But `transfer2` was not created.
 
-### Batching
+## Batching
 
 TigerBeetle performance is maximized when you batch
-inserts. The client does not do this automatically for
+API requests. The client does not do this automatically for
 you. So, for example, you *can* insert 1 million transfers
 one at a time like so:
 
