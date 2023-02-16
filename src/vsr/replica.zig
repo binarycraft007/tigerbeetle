@@ -25,7 +25,16 @@ const tracer = @import("../tracer.zig");
 pub const Status = enum {
     normal,
     view_change,
+    /// Replicas start with `.recovering` status. Normally, replica immediately
+    /// transitions to a different status. The exception is a single-node cluster,
+    /// where the replica stays in `.recovering` state until it commits all entries
+    /// from its journal.
     recovering,
+    /// Replica transitions from `.recovering` to `.recovering_head` at startup
+    /// if it finds its persistent state corrupted. In this case, replica can
+    /// not participate in consensus, as it might have forgotten some of the
+    /// messages it has sent or received before. Instead, it waits for a SV
+    /// message to get into a consistent state.
     recovering_head,
 };
 
@@ -150,8 +159,6 @@ pub fn ReplicaType(
         /// * `replica.op ≤ replica.op_checkpoint_trigger`:
         ///   Don't wrap the WAL until we are sure that the overwritten entry will not be required
         ///   for recovery.
-        // TODO: When recovery protocol is removed, load the `op` from the WAL, and verify that it is ≥op_checkpoint.
-        // Also verify that a corresponding header exists in the WAL.
         op: u64,
 
         /// The op number of the latest committed and executed operation (according to the replica):
@@ -246,9 +253,6 @@ pub fn ReplicaType(
 
         /// The number of ticks before repairing missing/disconnected headers and/or dirty entries:
         repair_timeout: Timeout,
-
-        /// The nonce of the `recovery` messages.
-        recovery_nonce: Nonce,
 
         /// Used to provide deterministic entropy to `choose_any_other_replica()`.
         /// Incremented whenever `choose_any_other_replica()` is called.
@@ -424,6 +428,13 @@ pub fn ReplicaType(
                     self.transition_to_recovering_head();
                 }
             }
+
+            assert(
+                (self.status == .recovering and self.replica_count == 1) or
+                    self.status == .normal or
+                    self.status == .view_change or
+                    self.status == .recovering_head,
+            );
         }
 
         fn superblock_open_callback(superblock_context: *SuperBlock.Context) void {
@@ -473,7 +484,6 @@ pub fn ReplicaType(
             const quorum_view_change = quorums.view_change;
             assert(quorum_replication <= replica_count);
             assert(quorum_view_change <= replica_count);
-            assert(quorum_view_change + quorum_replication >= replica_count);
 
             if (replica_count <= 2) {
                 assert(quorum_replication == replica_count);
@@ -517,15 +527,6 @@ pub fn ReplicaType(
                 options.state_machine_options,
             );
             errdefer self.state_machine.deinit(allocator);
-
-            const recovery_nonce = blk: {
-                var nonce: [@sizeOf(Nonce)]u8 = undefined;
-                var hash = std.crypto.hash.Blake3.init(.{});
-                hash.update(std.mem.asBytes(&self.clock.monotonic()));
-                hash.update(&[_]u8{replica_index});
-                hash.final(&nonce);
-                break :blk @bitCast(Nonce, nonce);
-            };
 
             self.* = Self{
                 .static_allocator = self.static_allocator,
@@ -585,7 +586,6 @@ pub fn ReplicaType(
                     .id = replica_index,
                     .after = 50,
                 },
-                .recovery_nonce = recovery_nonce,
                 .prng = std.rand.DefaultPrng.init(replica_index),
             };
 
@@ -1289,18 +1289,9 @@ pub fn ReplicaType(
 
             assert(self.op == message.header.op);
 
-            switch (self.status) {
-                .normal => {},
-                .view_change => {
-                    self.transition_to_normal_from_view_change_status(message.header.view);
-                    self.send_prepare_oks_after_view_change();
-                },
-                .recovering_head => {
-                    self.transition_to_normal_from_recovering_status();
-                    self.send_prepare_oks_after_view_change();
-                },
-                .recovering => unreachable,
-            }
+            assert(self.status == .view_change);
+            self.transition_to_normal_from_view_change_status(message.header.view);
+            self.send_prepare_oks_after_view_change();
 
             assert(self.status == .normal);
             assert(message.header.view == self.view);
@@ -1534,6 +1525,7 @@ pub fn ReplicaType(
             const op = self.nack_prepare_op.?;
             const checksum = self.journal.header_with_op(op).?.checksum;
             const slot = self.journal.slot_with_op(op).?;
+            assert(op <= self.op);
 
             if (message.header.op != op) {
                 log.debug("{}: on_nack_prepare: ignoring (repairing another op)", .{self.replica});
@@ -1604,6 +1596,7 @@ pub fn ReplicaType(
 
             assert(count == threshold);
             assert(!self.nack_prepare_from_other_replicas.isSet(self.replica));
+            assert(self.op - op < constants.pipeline_prepare_queue_max);
             log.debug("{}: on_nack_prepare: quorum received op={}", .{ self.replica, op });
 
             self.primary_discard_uncommitted_ops_from(op, checksum);
@@ -1660,13 +1653,9 @@ pub fn ReplicaType(
             assert(prepare.message.header.op == self.commit_min + 1);
 
             if (prepare.ok_quorum_received) {
-                self.prepare_timeout.reset();
+                assert(self.committing);
 
-                // We were unable to commit at the time because we were waiting for a message.
-                log.debug("{}: on_prepare_timeout: quorum already received, retrying commit", .{
-                    self.replica,
-                });
-                self.commit_pipeline();
+                self.prepare_timeout.reset();
                 return;
             }
 
@@ -1747,12 +1736,17 @@ pub fn ReplicaType(
             assert(self.primary());
             assert(self.commit_min == self.commit_max);
 
-            // TODO Snapshots: Use snapshot checksum if commit is no longer in journal.
-            const latest_committed_entry = self.journal.header_with_op(self.commit_max).?;
+            const latest_committed_entry = checksum: {
+                if (self.commit_max == self.superblock.working.vsr_state.commit_min) {
+                    break :checksum self.superblock.working.vsr_state.commit_min_checksum;
+                } else {
+                    break :checksum self.journal.header_with_op(self.commit_max).?.checksum;
+                }
+            };
 
             self.send_header_to_other_replicas(.{
                 .command = .commit,
-                .context = latest_committed_entry.checksum,
+                .context = latest_committed_entry,
                 .cluster = self.cluster,
                 .replica = self.replica,
                 .view = self.view,
@@ -2991,6 +2985,10 @@ pub fn ReplicaType(
         }
 
         fn ignore_prepare_ok(self: *Self, message: *const Message) bool {
+            if (self.primary_index(message.header.view) == self.replica) {
+                assert(message.header.view <= self.view);
+            }
+
             if (self.status != .normal) {
                 log.debug("{}: on_prepare_ok: ignoring ({})", .{ self.replica, self.status });
                 return true;
@@ -3312,18 +3310,11 @@ pub fn ReplicaType(
                 message.header.command == .do_view_change or
                 message.header.command == .start_view);
             assert(message.header.view > 0); // The initial view is already zero.
+            assert(self.status != .recovering); // Single node clusters don't have view changes.
 
             const command: []const u8 = @tagName(message.header.command);
 
             if (self.status == .recovering_head and message.header.command != .start_view) {
-                return true;
-            }
-
-            // While a replica's status is recovering it does not participate in either the request
-            // processing protocol or the view change protocol.
-            // This is critical for correctness (to avoid data loss):
-            if (self.status == .recovering) {
-                log.debug("{}: on_{s}: ignoring (recovering)", .{ self.replica, command });
                 return true;
             }
 
@@ -4603,6 +4594,7 @@ pub fn ReplicaType(
 
         fn send_start_view_change(self: *Self) void {
             assert(self.status == .view_change);
+            assert(self.log_view < self.view);
             assert(!self.do_view_change_quorum);
             // Send only to other replicas (and not to ourself) to avoid a quorum off-by-one error:
             // This could happen if the replica mistakenly counts its own message in the quorum.
@@ -5299,7 +5291,7 @@ pub fn ReplicaType(
         }
 
         fn transition_to_normal_from_recovering_status(self: *Self) void {
-            assert(self.status == .recovering or self.status == .recovering_head);
+            assert(self.status == .recovering);
             assert(self.view == self.log_view);
             assert(!self.committing);
             assert(self.replica_count > 1 or self.commit_min == self.op);
@@ -5626,7 +5618,8 @@ pub fn ReplicaType(
                     .view_change => if (header.view == self.view) return,
                     else => unreachable,
                 },
-                .recovering_head => {},
+                // We need a start_view from any other replica — don't request it from ourselves.
+                .recovering_head => if (self.primary_index(header.view) == self.replica) return,
                 else => unreachable,
             }
 
