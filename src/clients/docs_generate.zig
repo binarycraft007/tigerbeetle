@@ -334,6 +334,8 @@ const Generator = struct {
             \\not necessarily the same as the order of IDs in the
             \\request. You can refer to the ID field in the response to
             \\distinguish accounts.
+            \\
+            \\In this example, transfer `137` exists while transfer `138` does not.
         );
         mw.code(language.markdown_name, language.lookup_accounts_example);
 

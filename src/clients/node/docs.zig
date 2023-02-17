@@ -113,7 +113,6 @@ pub const NodeDocs = Docs{
     \\the `CreateAccountError` object for a human-readable string.
     ,
     .lookup_accounts_example = 
-    \\// account 137n exists, 138n does not
     \\const accounts = await client.lookupAccounts([137n, 138n]);
     \\/* console.log(accounts);
     \\ * [{
