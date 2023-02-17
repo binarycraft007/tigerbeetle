@@ -78,7 +78,7 @@ See details for account fields in the [Accounts
 reference](https://docs.tigerbeetle.com/reference/accounts).
 
 ```javascript
-const account = {
+let account = {
   id: 137n,
   user_data: 0n,
   reserved: Buffer.alloc(48, 0),
@@ -92,7 +92,7 @@ const account = {
   timestamp: 0n,
 };
 
-const accountErrors = await client.createAccounts([account]);
+let accountErrors = await client.createAccounts([account]);
 if (accountErrors.length) {
   // Grab a human-readable message from the response
   console.log(CreateAccountError[accountErrors[0].code]);
@@ -118,10 +118,10 @@ For example, to link `account0` and `account1`, where `account0`
 additionally has the `debits_must_not_exceed_credits` constraint:
 
 ```javascript
-const account0 = { /* ... account values ... */ };
-const account1 = { /* ... account values ... */ };
+let account0 = { /* ... account values ... */ };
+let account1 = { /* ... account values ... */ };
 account0.flags = AccountFlags.linked | AccountFlags.debits_must_not_exceed_credits;
-const accountErrors = await client.createAccounts([account0, account1]);
+accountErrors = await client.createAccounts([account0, account1]);
 ```
 
 ### Response and Errors
@@ -137,7 +137,7 @@ See all error conditions in the [create_accounts
 reference](https://docs.tigerbeetle.com/reference/operations/create_accounts).
 
 ```javascript
-const accountErrors = await client.createAccounts([account1, account2, account3]);
+accountErrors = await client.createAccounts([account1, account2, account3]);
 
 // accountErrors = [{ index: 1, code: 1 }];
 for (const error of accountErrors) {
@@ -202,7 +202,7 @@ See details for transfer fields in the [Transfers
 reference](https://docs.tigerbeetle.com/reference/transfers).
 
 ```javascript
-const transfer = {
+let transfer = {
   id: 1n,
   pending_id: 0n,
   debit_account_id: 1n,
@@ -216,7 +216,7 @@ const transfer = {
   amount: 10n,
   timestamp: 0n,
 };
-const transferErrors = await client.createTransfers([transfer]);
+let transferErrors = await client.createTransfers([transfer]);
 ```
 
 ### Response and Errors
@@ -293,11 +293,11 @@ bitwise-or:
 For example, to link `transfer0` and `transfer1`:
 
 ```javascript
-const transfer0 = { /* ... transfer values ... */ };
-const transfer1 = { /* ... transfer values ... */ };
+transfer0 = { /* ... transfer values ... */ };
+transfer1 = { /* ... transfer values ... */ };
 transfer0.flags = TransferFlags.linked;
 // Create the transfer
-const errors = await client.createTransfers([transfer0, transfer1]);
+transferErrors = await client.createTransfers([transfer0, transfer1]);
 ```
 
 ### Two-Phase Transfers
@@ -317,13 +317,13 @@ appropriate accounts and apply them to the `debits_posted` and
 `credits_posted` balances.
 
 ```javascript
-const post = {
+transfer = {
   id: 2n,
   pending_id: 1n,
   flags: TransferFlags.post_pending_transfer,
   timestamp: 0n,
 };
-const errors = await client.createTransfers([post]);
+transferErrors = await client.createTransfers([transfer]);
 ```
 
 #### Void a Pending Transfer
@@ -335,13 +335,13 @@ appropriate accounts and **not** apply them to the `debits_posted` and
 `credits_posted` balances.
 
 ```javascript
-const post = {
+transfer = {
   id: 2n,
   pending_id: 1n,
   flags: TransferFlags.void_pending_transfer,
   timestamp: 0n,
 };
-const errors = await client.createTransfers([post]);
+transferErrors = await client.createTransfers([transfer]);
 ```
 
 ## Transfer Lookup
@@ -362,7 +362,8 @@ In this example, transfer `1` exists while transfer `2` does not.
 
 ```javascript
 const transfers = await client.lookupTransfers([1n, 2n]);
-/* console.log(transfers);
+console.log(transfers);
+/*
  * [{
  *   id: 1n,
  *   pending_id: 0n,
@@ -404,25 +405,25 @@ let linkedFlag = 0;
 linkedFlag |= CreateTransferFlags.linked;
 
 // An individual transfer (successful):
-batch.push({ id: 1n, ... });
+batch.push({ id: 1n /* , ... */ });
 
 // A chain of 4 transfers (the last transfer in the chain closes the chain with linked=false):
-batch.push({ id: 2n, ..., flags: linkedFlag }); // Commit/rollback.
-batch.push({ id: 3n, ..., flags: linkedFlag }); // Commit/rollback.
-batch.push({ id: 2n, ..., flags: linkedFlag }); // Fail with exists
-batch.push({ id: 4n, ..., flags: 0 });          // Fail without committing.
+batch.push({ id: 2n, /* ..., */ flags: linkedFlag }); // Commit/rollback.
+batch.push({ id: 3n, /* ..., */ flags: linkedFlag }); // Commit/rollback.
+batch.push({ id: 2n, /* ..., */ flags: linkedFlag }); // Fail with exists
+batch.push({ id: 4n, /* ..., */ flags: 0 });          // Fail without committing.
 
 // An individual transfer (successful):
 // This should not see any effect from the failed chain above.
-batch.push({ id: 2n, ..., flags: 0 });
+batch.push({ id: 2n, /* ..., */ flags: 0 });
 
 // A chain of 2 transfers (the first transfer fails the chain):
-batch.push({ id: 2n, ..., flags: linkedFlag });
-batch.push({ id: 3n, ..., flags: 0 });
+batch.push({ id: 2n, /* ..., */ flags: linkedFlag });
+batch.push({ id: 3n, /* ..., */ flags: 0 });
 
 // A chain of 2 transfers (successful):
-batch.push({ id: 3n, ..., flags: linkedFlag });
-batch.push({ id: 4n, ..., flags: 0 });
+batch.push({ id: 3n, /* ..., */ flags: linkedFlag });
+batch.push({ id: 4n, /* ..., */ flags: 0 });
 
 const errors = await client.createTransfers(batch);
 

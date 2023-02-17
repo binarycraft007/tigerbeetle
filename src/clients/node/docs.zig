@@ -53,7 +53,7 @@ pub const NodeDocs = Docs{
     ,
     .client_object_documentation = "",
     .create_accounts_example = 
-    \\const account = {
+    \\let account = {
     \\  id: 137n,
     \\  user_data: 0n,
     \\  reserved: Buffer.alloc(48, 0),
@@ -67,7 +67,7 @@ pub const NodeDocs = Docs{
     \\  timestamp: 0n,
     \\};
     \\
-    \\const accountErrors = await client.createAccounts([account]);
+    \\let accountErrors = await client.createAccounts([account]);
     \\if (accountErrors.length) {
     \\  // Grab a human-readable message from the response
     \\  console.log(CreateAccountError[accountErrors[0].code]);
@@ -86,13 +86,13 @@ pub const NodeDocs = Docs{
     ,
 
     .account_flags_example = 
-    \\const account0 = { /* ... account values ... */ };
-    \\const account1 = { /* ... account values ... */ };
+    \\let account0 = { /* ... account values ... */ };
+    \\let account1 = { /* ... account values ... */ };
     \\account0.flags = AccountFlags.linked | AccountFlags.debits_must_not_exceed_credits;
-    \\const accountErrors = await client.createAccounts([account0, account1]);
+    \\accountErrors = await client.createAccounts([account0, account1]);
     ,
     .create_accounts_errors_example = 
-    \\const accountErrors = await client.createAccounts([account1, account2, account3]);
+    \\accountErrors = await client.createAccounts([account1, account2, account3]);
     \\
     \\// accountErrors = [{ index: 1, code: 1 }];
     \\for (const error of accountErrors) {
@@ -132,7 +132,7 @@ pub const NodeDocs = Docs{
     ,
 
     .create_transfers_example = 
-    \\const transfer = {
+    \\let transfer = {
     \\  id: 1n,
     \\  pending_id: 0n,
     \\  debit_account_id: 1n,
@@ -146,7 +146,7 @@ pub const NodeDocs = Docs{
     \\  amount: 10n,
     \\  timestamp: 0n,
     \\};
-    \\const transferErrors = await client.createTransfers([transfer]);
+    \\let transferErrors = await client.createTransfers([transfer]);
     ,
     .create_transfers_documentation = "",
     .create_transfers_errors_example = 
@@ -193,34 +193,35 @@ pub const NodeDocs = Docs{
     \\* `TransferFlags.void_pending_transfer`
     ,
     .transfer_flags_link_example = 
-    \\const transfer0 = { /* ... transfer values ... */ };
-    \\const transfer1 = { /* ... transfer values ... */ };
+    \\transfer0 = { /* ... transfer values ... */ };
+    \\transfer1 = { /* ... transfer values ... */ };
     \\transfer0.flags = TransferFlags.linked;
     \\// Create the transfer
-    \\const errors = await client.createTransfers([transfer0, transfer1]);
+    \\transferErrors = await client.createTransfers([transfer0, transfer1]);
     ,
     .transfer_flags_post_example = 
-    \\const post = {
+    \\transfer = {
     \\  id: 2n,
     \\  pending_id: 1n,
     \\  flags: TransferFlags.post_pending_transfer,
     \\  timestamp: 0n,
     \\};
-    \\const errors = await client.createTransfers([post]);
+    \\transferErrors = await client.createTransfers([transfer]);
     ,
     .transfer_flags_void_example = 
-    \\const post = {
+    \\transfer = {
     \\  id: 2n,
     \\  pending_id: 1n,
     \\  flags: TransferFlags.void_pending_transfer,
     \\  timestamp: 0n,
     \\};
-    \\const errors = await client.createTransfers([post]);
+        \\transferErrors = await client.createTransfers([transfer]);
     ,
 
     .lookup_transfers_example = 
     \\const transfers = await client.lookupTransfers([1n, 2n]);
-    \\/* console.log(transfers);
+    \\console.log(transfers);
+    \\/*
     \\ * [{
     \\ *   id: 1n,
     \\ *   pending_id: 0n,
