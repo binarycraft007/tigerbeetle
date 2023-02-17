@@ -133,8 +133,23 @@ The account flags value is a bitfield. See details for
 these flags in the [Accounts
 reference](https://docs.tigerbeetle.com/reference/accounts#flags).
 
+To toggle behavior for an account, use the `AccountFlags` struct
+to combine enum values and generate a `uint16`. Here are a
+few examples, but any combination of these flags is ok.
+
+* `AccountFlags{Linked: true}.ToUint16()`
+* `AccountFlags{DebitsMustNotExceedCredits: true}.ToUint16()`
+* `AccountFlags{CreditsMustNotExceedDebits: true}.ToUint16()`
+
 For example, to link `account0` and `account1`, where `account0`
 additionally has the `debits_must_not_exceed_credits` constraint:
+
+```go
+account0 := tb_types.Account{ ... account values ... }
+account1 := tb_types.Account{ ... account values ... }
+account0.Flags = AccountFlags{Linked: true}.ToUint16()
+accountErrors := client.CreateAccounts([]tb_types.Account{account0, account1})
+```
 
 ### Response and Errors
 

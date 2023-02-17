@@ -113,8 +113,21 @@ pub const GoDocs = Docs{
     \\The `tb_types` package can be imported from `"github.com/tigerbeetledb/tigerbeetle-go/pkg/types"`.
     ,
 
-    .account_flags_details = "",
-    .account_flags_example = "",
+    .account_flags_details = 
+    \\To toggle behavior for an account, use the `AccountFlags` struct
+    \\to combine enum values and generate a `uint16`. Here are a
+    \\few examples, but any combination of these flags is ok.
+    \\
+    \\* `AccountFlags{Linked: true}.ToUint16()`
+    \\* `AccountFlags{DebitsMustNotExceedCredits: true}.ToUint16()`
+    \\* `AccountFlags{CreditsMustNotExceedDebits: true}.ToUint16()`
+    ,
+    .account_flags_example =
+\\account0 := tb_types.Account{ ... account values ... }
+\\account1 := tb_types.Account{ ... account values ... }
+\\account0.Flags = AccountFlags{Linked: true}.ToUint16()
+\\accountErrors := client.CreateAccounts([]tb_types.Account{account0, account1})
+        ,
 
     .create_accounts_errors_example = 
     \\res, err := client.CreateAccounts([]tb_types.Account{account1, account2, account3})
