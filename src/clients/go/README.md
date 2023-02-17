@@ -102,8 +102,8 @@ reference](https://docs.tigerbeetle.com/reference/accounts).
 accountsRes, err := client.CreateAccounts([]tb_types.Account{
 	{
 		ID:     	uint128("137"),
-		UserData:	x,
-		Reserved:   	nil,
+		UserData:	tb_types.Uint128{},
+		Reserved:   	[48]uint8{},
 		Ledger:		1,
 		Code:   	718,
 		Flags:   	0,
