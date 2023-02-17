@@ -271,8 +271,8 @@ const Generator = struct {
             \\starts the TigerBeetle cluster.
             \\
             \\In this example the cluster ID is `0` and there are
-            \\three replicas running on ports `3000`, `3001`, and
-            \\`3002`.
+            \\three replicas running on ports `3001`, `3002`, and
+            \\`3003`.
         );
         mw.code(language.markdown_name, language.client_object_example);
         mw.paragraph(language.client_object_documentation);
