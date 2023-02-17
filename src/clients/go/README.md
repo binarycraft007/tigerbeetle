@@ -174,18 +174,6 @@ for _, err := range res {
 	log.Printf("Error creating account %d: %s", err.Index, err.Result)
 	return
 }
-const errors = await client.createAccounts([account1, account2, account3]);
-
-// errors = [{ index: 1, code: 1 }];
-for (const error of errors) {
-  switch (error.code) {
-    case CreateAccountError.exists:
-      console.error(`Batch account at ${error.index} already exists.`);
-	  break;
-    default:
-      console.error(`Batch account at ${error.index} failed to create: ${CreateAccountError[error.code]}.`);
-  }
-}
 ```
 
 The example above shows that the account in index 1 failed
@@ -229,12 +217,18 @@ reference](https://docs.tigerbeetle.com/reference/transfers).
 
 ```go
 transfer := tb_types.Transfer{
-	ID:              uint128("1"),
-	DebitAccountID:  uint128("1"),
-	CreditAccountID: uint128("2"),
-	Ledger:          1,
-	Code:            1,
-	Amount:          10,
+	ID:			uint128("1"),
+	PendingID:		tb_types.Uint128{},
+	DebitAccountID:		uint128("1"),
+	CreditAccountID:	uint128("2"),
+	UserData:		uint128("2"),
+	Reserved:		tb_types.Uint128{},
+	Timeout:		0,
+	Ledger:			1,
+	Code:			1,
+	Flags:			0,
+	Amount:			10,
+	Timestamp:		0,
 }
 
 transfersRes, err := client.CreateTransfers([]tb_types.Transfer{transfer})

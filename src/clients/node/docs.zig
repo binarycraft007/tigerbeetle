@@ -134,24 +134,18 @@ pub const NodeDocs = Docs{
 
     .create_transfers_example = 
     \\const transfer = {
-    \\  id: 1n, // u128
-    \\  pending_id: 0n, // u128
-    \\  // Double-entry accounting:
-    \\  debit_account_id: 1n,  // u128
-    \\  credit_account_id: 2n, // u128
-    \\  // Opaque third-party identifier to link this transfer to an external entity:
-    \\  user_data: 0n, // u128  
-    \\  reserved: 0n, // u128
-    \\  // Timeout applicable for a pending/2-phase transfer:
-    \\  timeout: 0n, // u64, in nano-seconds.
-    \\  // Collection of accounts usually grouped by the currency: 
-    \\  // You can't transfer money between accounts with different ledgers:
-    \\  ledger: 1,  // u32, ledger for transfer (e.g. currency).
-    \\  // Chart of accounts code describing the reason for the transfer:
-    \\  code: 720,  // u16, (e.g. deposit, settlement)
-    \\  flags: 0, // u16
-    \\  amount: 10n, // u64
-    \\  timestamp: 0n, //u64, Reserved: This will be set by the server.
+    \\  id: 1n,
+    \\  pending_id: 0n,
+    \\  debit_account_id: 1n,
+    \\  credit_account_id: 2n,
+    \\  user_data: 0n,
+    \\  reserved: 0n,
+    \\  timeout: 0n,
+    \\  ledger: 1,
+    \\  code: 720,
+    \\  flags: 0,
+    \\  amount: 10n,
+    \\  timestamp: 0n,
     \\};
     \\const transferErrors = await client.createTransfers([transfer]);
     \\for (const error of transferErrors) {
