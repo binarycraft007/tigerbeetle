@@ -29,14 +29,7 @@ jobs:
 
       # Runs checks against generated client docs
       - run: ./scripts/install_zig.sh
-
-      # Skip validation because in pull requests it takes forever.
-      - run: ( cd src/clients && ../../zig/zig run docs_generate.zig -- --no-validate )
-        if: github.ref != 'refs/heads/main'
-      # Do full validation after merge.
       - run: ( cd src/clients && ../../zig/zig run docs_generate.zig )
-        if: github.ref == 'refs/heads/main'
-
       - run: ./scripts/fail_on_diff.sh
     env:
       SOURCE_REPO: ${{ github.event.pull_request.head.repo.clone_url }}
