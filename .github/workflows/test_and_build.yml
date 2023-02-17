@@ -33,6 +33,7 @@ jobs:
       # Skip validation because in pull requests it takes forever.
       - run: ( cd src/clients && ../../zig/zig run docs_generate.zig -- --no-validate )
         if: github.ref != 'refs/heads/main'
+      # Do full validation after merge.
       - run: ( cd src/clients && ../../zig/zig run docs_generate.zig )
         if: github.ref == 'refs/heads/main'
 
