@@ -244,25 +244,25 @@ pub const NodeDocs = Docs{
     \\linkedFlag |= CreateTransferFlags.linked;
     \\
     \\// An individual transfer (successful):
-    \\batch.push({ id: 1n, ... });
+    \\batch.push({ id: 1n /* , ... */ });
     \\
     \\// A chain of 4 transfers (the last transfer in the chain closes the chain with linked=false):
-    \\batch.push({ id: 2n, ..., flags: linkedFlag }); // Commit/rollback.
-    \\batch.push({ id: 3n, ..., flags: linkedFlag }); // Commit/rollback.
-    \\batch.push({ id: 2n, ..., flags: linkedFlag }); // Fail with exists
-    \\batch.push({ id: 4n, ..., flags: 0 });          // Fail without committing.
+    \\batch.push({ id: 2n, /* ..., */ flags: linkedFlag }); // Commit/rollback.
+    \\batch.push({ id: 3n, /* ..., */ flags: linkedFlag }); // Commit/rollback.
+    \\batch.push({ id: 2n, /* ..., */ flags: linkedFlag }); // Fail with exists
+    \\batch.push({ id: 4n, /* ..., */ flags: 0 });          // Fail without committing.
     \\
     \\// An individual transfer (successful):
     \\// This should not see any effect from the failed chain above.
-    \\batch.push({ id: 2n, ..., flags: 0 });
+    \\batch.push({ id: 2n, /* ..., */ flags: 0 });
     \\
     \\// A chain of 2 transfers (the first transfer fails the chain):
-    \\batch.push({ id: 2n, ..., flags: linkedFlag });
-    \\batch.push({ id: 3n, ..., flags: 0 });
+    \\batch.push({ id: 2n, /* ..., */ flags: linkedFlag });
+    \\batch.push({ id: 3n, /* ..., */ flags: 0 });
     \\
     \\// A chain of 2 transfers (successful):
-    \\batch.push({ id: 3n, ..., flags: linkedFlag });
-    \\batch.push({ id: 4n, ..., flags: 0 });
+    \\batch.push({ id: 3n, /* ..., */ flags: linkedFlag });
+    \\batch.push({ id: 4n, /* ..., */ flags: 0 });
     \\
     \\const errors = await client.createTransfers(batch);
     \\

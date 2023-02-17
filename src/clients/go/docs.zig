@@ -244,9 +244,43 @@ pub const GoDocs = Docs{
     \\log.Println(transfersRes, err)
     ,
 
-    .lookup_transfers_example = "",
+    .lookup_transfers_example = 
+    \\transfers, err := client.LookupTransfers([]tb_types.Uint128{uint128("1"), uint128("2")})
+    \\if err != nil {
+    \\	log.Printf("Could not fetch transfers: %s", err)
+    \\	return
+    \\}
+    \\log.Println(transfers)
+    ,
 
-    .linked_events_example = "",
+    .linked_events_example = 
+    \\batch := []tb_types.Transfer{}
+    \\linkedFlag := tb_types.TransferFlags{Linked: true}.ToUint16()
+    \\
+    \\// An individual transfer (successful):
+    \\batch = append(batch, tb_types.Transfer{ID: uint128("1"), /* ... */ })
+    \\
+    \\// A chain of 4 transfers (the last transfer in the chain closes the chain with linked=false):
+    \\batch = append(batch, tb_types.Transfer{ID: uint128("2"), /* ... , */ Flags: linkedFlag }) // Commit/rollback.
+    \\batch = append(batch, tb_types.Transfer{ID: uint128("3"), /* ... , */ Flags: linkedFlag }) // Commit/rollback.
+    \\batch = append(batch, tb_types.Transfer{ID: uint128("2"), /* ... , */ Flags: linkedFlag }) // Fail with exists
+    \\batch = append(batch, tb_types.Transfer{ID: uint128("4"), /* ... , */ }) // Fail without committing
+    \\
+    \\// An individual transfer (successful):
+    \\// This should not see any effect from the failed chain above.
+    \\batch = append(batch, tb_types.Transfer{ID: uint128("2"), /* ... */ })
+    \\
+    \\// A chain of 2 transfers (the first transfer fails the chain):
+    \\batch = append(batch, tb_types.Transfer{ID: uint128("2"), /* ... */ Flags: linkedFlag })
+    \\batch = append(batch, tb_types.Transfer{ID: uint128("3"), /* ... */ Flags: linkedFlag })
+    \\
+    \\// A chain of 2 transfers (successful):
+    \\batch = append(batch, tb_types.Transfer{ID: uint128("3"), /* ... */ Flags: linkedFlag })
+    \\batch = append(batch, tb_types.Transfer{ID: uint128("4"), /* ... */ })
+    \\
+    \\transfersRes, err = client.CreateTransfers(batch)
+    \\log.Println(transfersRes, err)
+    ,
 
     .developer_setup_bash_commands = 
     \\git clone https://github.com/tigerbeetledb/tigerbeetle

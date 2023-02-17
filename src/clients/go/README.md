@@ -374,6 +374,15 @@ the same as the order of `id`s in the request. You can refer to the
 
 In this example, transfer `1` exists while transfer `2` does not.
 
+```go
+transfers, err := client.LookupTransfers([]tb_types.Uint128{uint128("1"), uint128("2")})
+if err != nil {
+	log.Printf("Could not fetch transfers: %s", err)
+	return
+}
+log.Println(transfers)
+```
+
 ## Linked Events
 
 When the `linked` flag is specified for an account when creating accounts or
@@ -391,6 +400,35 @@ next, and so that the chain is either visible or invisible as a unit
 to subsequent events after the chain. The event that was the first to
 break the chain will have a unique error result. Other events in the
 chain will have their error result set to `linked_event_failed`.
+
+```go
+batch := []tb_types.Transfer{}
+linkedFlag := tb_types.TransferFlags{Linked: true}.ToUint16()
+
+// An individual transfer (successful):
+batch = append(batch, tb_types.Transfer{ID: uint128("1"), /* ... */ })
+
+// A chain of 4 transfers (the last transfer in the chain closes the chain with linked=false):
+batch = append(batch, tb_types.Transfer{ID: uint128("2"), /* ... , */ Flags: linkedFlag }) // Commit/rollback.
+batch = append(batch, tb_types.Transfer{ID: uint128("3"), /* ... , */ Flags: linkedFlag }) // Commit/rollback.
+batch = append(batch, tb_types.Transfer{ID: uint128("2"), /* ... , */ Flags: linkedFlag }) // Fail with exists
+batch = append(batch, tb_types.Transfer{ID: uint128("4"), /* ... , */ }) // Fail without committing
+
+// An individual transfer (successful):
+// This should not see any effect from the failed chain above.
+batch = append(batch, tb_types.Transfer{ID: uint128("2"), /* ... */ })
+
+// A chain of 2 transfers (the first transfer fails the chain):
+batch = append(batch, tb_types.Transfer{ID: uint128("2"), /* ... */ Flags: linkedFlag })
+batch = append(batch, tb_types.Transfer{ID: uint128("3"), /* ... */ Flags: linkedFlag })
+
+// A chain of 2 transfers (successful):
+batch = append(batch, tb_types.Transfer{ID: uint128("3"), /* ... */ Flags: linkedFlag })
+batch = append(batch, tb_types.Transfer{ID: uint128("4"), /* ... */ })
+
+transfersRes, err = client.CreateTransfers(batch)
+log.Println(transfersRes, err)
+```
 
 ## Development Setup
 
