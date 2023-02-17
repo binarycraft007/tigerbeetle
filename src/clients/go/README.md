@@ -47,7 +47,7 @@ $ go run test.go
 See [./samples/basic](./samples/basic) for a Go project
 showing many features of the client.
 
-### Sidenote: `uint128()`
+### Sidenote: `uint128`
 
 Throughout this README there will be a reference to a
 helper, `uint128`, that converts a string to TigerBeetle's
