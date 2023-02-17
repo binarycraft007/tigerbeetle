@@ -215,7 +215,7 @@ pub const NodeDocs = Docs{
     \\  flags: TransferFlags.void_pending_transfer,
     \\  timestamp: 0n,
     \\};
-        \\transferErrors = await client.createTransfers([transfer]);
+    \\transferErrors = await client.createTransfers([transfer]);
     ,
 
     .lookup_transfers_example = 
