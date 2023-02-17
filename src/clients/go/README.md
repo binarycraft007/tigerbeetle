@@ -72,11 +72,11 @@ ID and replica addresses are both chosen by the system that
 starts the TigerBeetle cluster.
 
 In this example the cluster ID is `0` and there are
-three replicas running on ports `3000`, `3001`, and
-`3002`.
+three replicas running on ports `3001`, `3002`, and
+`3003`.
 
 ```go
-client, err := tb.NewClient(0, []string{"3000", "3001", "3002"}, 0)
+client, err := tb.NewClient(0, []string{"3001", "3002", "3003"}, 1)
 if err != nil {
 	log.Printf("Error creating client: %s", err)
 	return
@@ -84,11 +84,9 @@ if err != nil {
 defer client.Close()
 ```
 
-`NewClient` takes three arguments: a unique `uint32`
-representing the cluster ID, an array of addressess for
-all servers in the cluster, a `uint` max concurrency
-setting (`1` is a good default and can increase to `4096`
-as you need increased throughput).
+The third argument to `NewClient` is a `uint` max concurrency
+setting. `1` is a good default and can increase to `4096`
+as you need increased throughput.
 
 The following are valid addresses:
 * `3000` (interpreted as `127.0.0.1:3000`)

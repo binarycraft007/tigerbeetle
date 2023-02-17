@@ -68,7 +68,7 @@ pub const GoDocs = Docs{
     ,
 
     .client_object_example = 
-    \\client, err := tb.NewClient(0, []string{"3001", "3002", "3003"}, 0)
+    \\client, err := tb.NewClient(0, []string{"3001", "3002", "3003"}, 1)
     \\if err != nil {
     \\	log.Printf("Error creating client: %s", err)
     \\	return
@@ -77,11 +77,9 @@ pub const GoDocs = Docs{
     ,
 
     .client_object_documentation = 
-    \\`NewClient` takes three arguments: a unique `uint32`
-    \\representing the cluster ID, an array of addressess for
-    \\all servers in the cluster, a `uint` max concurrency
-    \\setting (`1` is a good default and can increase to `4096`
-    \\as you need increased throughput).
+    \\The third argument to `NewClient` is a `uint` max concurrency
+    \\setting. `1` is a good default and can increase to `4096`
+    \\as you need increased throughput.
     ,
 
     .create_accounts_example = 
