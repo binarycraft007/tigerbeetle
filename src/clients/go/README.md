@@ -10,21 +10,6 @@ The TigerBeetle client for Go.
 Make sure to import `github.com/tigerbeetledb/tigerbeetle-go`, not
 this repo and subdirectory.
 
-Throughout this README there will be a reference to a
-helper, `uint128`, that converts a string to TigerBeetle's
-representation of a 128-bit integer. That helper can be
-defined like so:
-
-```go
-func uint128(value string) tb_types.Uint128 {
-	x, err := tb_types.HexStringToUint128(value)
-	if err != nil {
-		panic(err)
-	}
-	return x
-}
-```
-
 ### Prerequisites
 
 * Go >= 1.17
@@ -61,6 +46,23 @@ $ go run test.go
 
 See [./samples/basic](./samples/basic) for a Go project
 showing many features of the client.
+
+#### Sidenote: `uint128()`
+
+Throughout this README there will be a reference to a
+helper, `uint128`, that converts a string to TigerBeetle's
+representation of a 128-bit integer. That helper can be
+defined like so:
+
+```go
+func uint128(value string) tb_types.Uint128 {
+	x, err := tb_types.HexStringToUint128(value)
+	if err != nil {
+		panic(err)
+	}
+	return x
+}
+```
 
 ## Creating a Client
 
