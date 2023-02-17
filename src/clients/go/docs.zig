@@ -114,20 +114,21 @@ pub const GoDocs = Docs{
     ,
 
     .account_flags_documentation = 
-    \\To toggle behavior for an account, use the `AccountFlags` struct
+    \\To toggle behavior for an account, use the `tb_types.AccountFlags` struct
     \\to combine enum values and generate a `uint16`. Here are a
     \\few examples:
     \\
-    \\* `AccountFlags{Linked: true}.ToUint16()`
-    \\* `AccountFlags{DebitsMustNotExceedCredits: true}.ToUint16()`
-    \\* `AccountFlags{CreditsMustNotExceedDebits: true}.ToUint16()`
+    \\* `tb_types.AccountFlags{Linked: true}.ToUint16()`
+    \\* `tb_types.AccountFlags{DebitsMustNotExceedCredits: true}.ToUint16()`
+    \\* `tb_types.AccountFlags{CreditsMustNotExceedDebits: true}.ToUint16()`
     ,
-    .account_flags_example =
-\\account0 := tb_types.Account{ ... account values ... }
-\\account1 := tb_types.Account{ ... account values ... }
-\\account0.Flags = AccountFlags{Linked: true}.ToUint16()
-\\accountErrors := client.CreateAccounts([]tb_types.Account{account0, account1})
-        ,
+    .account_flags_example = 
+    \\account0 := tb_types.Account{ /* ... account values ... */ }
+    \\account1 := tb_types.Account{ /* ... account values ... */ }
+    \\account0.Flags = tb_types.AccountFlags{Linked: true}.ToUint16()
+    \\accountErrors, err := client.CreateAccounts([]tb_types.Account{account0, account1})
+    \\log.Println(accountErrors, err)
+    ,
 
     .create_accounts_errors_example = 
     \\res, err := client.CreateAccounts([]tb_types.Account{account1, account2, account3})
@@ -180,7 +181,7 @@ pub const GoDocs = Docs{
     \\}
     ,
     .create_transfers_documentation = "",
-    .create_transfers_errors_example =
+    .create_transfers_errors_example = 
     \\for _, err := range transfersRes {
     \\	log.Printf("Batch transfer at %d failed to create: %s", err.Index, err.Result)
     \\	return
@@ -190,36 +191,58 @@ pub const GoDocs = Docs{
 
     .no_batch_example = 
     \\for (let i = 0; i < len(transfers); i++) {
-    \\  errors := client.CreateTransfers(transfers[i]);
-    \\  // error handling omitted
+    \\	errors := client.CreateTransfers(transfers[i]);
+    \\	// error handling omitted
     \\}
     ,
 
     .batch_example = 
     \\BATCH_SIZE := 8191
     \\for i := 0; i < len(transfers); i += BATCH_SIZE {
-    \\  batch := BATCH_SIZE
-    \\  if i + BATCH_SIZE > len(transfers) {
-    \\    i = BATCH_SIZE - i
-    \\  }
-    \\  errors := client.CreateTransfers(transfers[i:i + batch])
-    \\  // error handling omitted
+    \\	batch := BATCH_SIZE
+    \\	if i + BATCH_SIZE > len(transfers) {
+    \\		i = BATCH_SIZE - i
+    \\	}
+    \\	transfersRes, err := client.CreateTransfers(transfers[i:i + batch])
+    \\	// error handling omitted
     \\}
     ,
 
-    .transfer_flags_documentation =
-    \\To toggle behavior for an account, use the `TransferFlags` struct
+    .transfer_flags_documentation = 
+    \\To toggle behavior for an account, use the `tb_types.TransferFlags` struct
     \\to combine enum values and generate a `uint16`. Here are a
     \\few examples:
     \\
-    \\* `TransferFlags{Linked: true}.ToUint16()`
-    \\* `TransferFlags{Pending: true}.ToUint16()`
-    \\* `TransferFlags{PostPendingTransfer: true}.ToUint16()`
-    \\* `TransferFlags{VoidPendingTransfer: true}.ToUint16()`
+    \\* `tb_types.TransferFlags{Linked: true}.ToUint16()`
+    \\* `tb_types.TransferFlags{Pending: true}.ToUint16()`
+    \\* `tb_types.TransferFlags{PostPendingTransfer: true}.ToUint16()`
+    \\* `tb_types.TransferFlags{VoidPendingTransfer: true}.ToUint16()`
     ,
-    .transfer_flags_link_example = "",
-    .transfer_flags_post_example = "",
-    .transfer_flags_void_example = "",
+    .transfer_flags_link_example = 
+    \\transfer0 := tb_types.Transfer{ /* ... account values ... */ }
+    \\transfer1 := tb_types.Transfer{ /* ... account values ... */ }
+    \\transfer0.Flags = tb_types.TransferFlags{Linked: true}.ToUint16()
+    \\transfersRes, err = client.CreateTransfers([]tb_types.Transfer{transfer0, transfer1})
+    ,
+    .transfer_flags_post_example = 
+    \\transfer = tb_types.Transfer{
+    \\	ID:		uint128("2"),
+    \\	PendingID:	uint128("1"),
+    \\	Flags:		tb_types.TransferFlags{PostPendingTransfer: true}.ToUint16(),
+    \\	Timestamp:	0,
+    \\}
+    \\transfersRes, err = client.CreateTransfers([]tb_types.Transfer{transfer})
+    ,
+    .transfer_flags_void_example = 
+    \\transfer = tb_types.Transfer{
+    \\	ID:		uint128("2"),
+    \\	PendingID:	uint128("1"),
+    \\	Flags:		tb_types.TransferFlags{VoidPendingTransfer: true}.ToUint16(),
+    \\	Timestamp:	0,
+    \\}
+    \\transfersRes, err = client.CreateTransfers([]tb_types.Transfer{transfer})
+    \\log.Println(transfersRes, err)
+    ,
 
     .lookup_transfers_example = "",
 

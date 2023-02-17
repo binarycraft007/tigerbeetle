@@ -133,22 +133,23 @@ The account flags value is a bitfield. See details for
 these flags in the [Accounts
 reference](https://docs.tigerbeetle.com/reference/accounts#flags).
 
-To toggle behavior for an account, use the `AccountFlags` struct
+To toggle behavior for an account, use the `tb_types.AccountFlags` struct
 to combine enum values and generate a `uint16`. Here are a
 few examples:
 
-* `AccountFlags{Linked: true}.ToUint16()`
-* `AccountFlags{DebitsMustNotExceedCredits: true}.ToUint16()`
-* `AccountFlags{CreditsMustNotExceedDebits: true}.ToUint16()`
+* `tb_types.AccountFlags{Linked: true}.ToUint16()`
+* `tb_types.AccountFlags{DebitsMustNotExceedCredits: true}.ToUint16()`
+* `tb_types.AccountFlags{CreditsMustNotExceedDebits: true}.ToUint16()`
 
 For example, to link `account0` and `account1`, where `account0`
 additionally has the `debits_must_not_exceed_credits` constraint:
 
 ```go
-account0 := tb_types.Account{ ... account values ... }
-account1 := tb_types.Account{ ... account values ... }
-account0.Flags = AccountFlags{Linked: true}.ToUint16()
-accountErrors := client.CreateAccounts([]tb_types.Account{account0, account1})
+account0 := tb_types.Account{ /* ... account values ... */ }
+account1 := tb_types.Account{ /* ... account values ... */ }
+account0.Flags = tb_types.AccountFlags{Linked: true}.ToUint16()
+accountErrors, err := client.CreateAccounts([]tb_types.Account{account0, account1})
+log.Println(accountErrors, err)
 ```
 
 ### Response and Errors
@@ -265,8 +266,8 @@ one at a time like so:
 
 ```go
 for (let i = 0; i < len(transfers); i++) {
-  errors := client.CreateTransfers(transfers[i]);
-  // error handling omitted
+	errors := client.CreateTransfers(transfers[i]);
+	// error handling omitted
 }
 ```
 
@@ -279,12 +280,12 @@ is 8191.
 ```go
 BATCH_SIZE := 8191
 for i := 0; i < len(transfers); i += BATCH_SIZE {
-  batch := BATCH_SIZE
-  if i + BATCH_SIZE > len(transfers) {
-    i = BATCH_SIZE - i
-  }
-  errors := client.CreateTransfers(transfers[i:i + batch])
-  // error handling omitted
+	batch := BATCH_SIZE
+	if i + BATCH_SIZE > len(transfers) {
+		i = BATCH_SIZE - i
+	}
+	transfersRes, err := client.CreateTransfers(transfers[i:i + batch])
+	// error handling omitted
 }
 ```
 
@@ -294,16 +295,23 @@ The transfer `flags` value is a bitfield. See details for these flags in
 the [Transfers
 reference](https://docs.tigerbeetle.com/reference/transfers#flags).
 
-To toggle behavior for an account, use the `TransferFlags` struct
+To toggle behavior for an account, use the `tb_types.TransferFlags` struct
 to combine enum values and generate a `uint16`. Here are a
 few examples:
 
-* `TransferFlags{Linked: true}.ToUint16()`
-* `TransferFlags{Pending: true}.ToUint16()`
-* `TransferFlags{PostPendingTransfer: true}.ToUint16()`
-* `TransferFlags{VoidPendingTransfer: true}.ToUint16()`
+* `tb_types.TransferFlags{Linked: true}.ToUint16()`
+* `tb_types.TransferFlags{Pending: true}.ToUint16()`
+* `tb_types.TransferFlags{PostPendingTransfer: true}.ToUint16()`
+* `tb_types.TransferFlags{VoidPendingTransfer: true}.ToUint16()`
 
 For example, to link `transfer0` and `transfer1`:
+
+```go
+transfer0 := tb_types.Transfer{ /* ... account values ... */ }
+transfer1 := tb_types.Transfer{ /* ... account values ... */ }
+transfer0.Flags = tb_types.TransferFlags{Linked: true}.ToUint16()
+transfersRes, err = client.CreateTransfers([]tb_types.Transfer{transfer0, transfer1})
+```
 
 ### Two-Phase Transfers
 
@@ -321,6 +329,16 @@ back the changes to `debits_pending` and `credits_pending` of the
 appropriate accounts and apply them to the `debits_posted` and
 `credits_posted` balances.
 
+```go
+transfer = tb_types.Transfer{
+	ID:		uint128("2"),
+	PendingID:	uint128("1"),
+	Flags:		tb_types.TransferFlags{PostPendingTransfer: true}.ToUint16(),
+	Timestamp:	0,
+}
+transfersRes, err = client.CreateTransfers([]tb_types.Transfer{transfer})
+```
+
 #### Void a Pending Transfer
 
 In contrast, with `flags` set to `void_pending_transfer`,
@@ -328,6 +346,17 @@ TigerBeetle will void the transfer. TigerBeetle will roll
 back the changes to `debits_pending` and `credits_pending` of the
 appropriate accounts and **not** apply them to the `debits_posted` and
 `credits_posted` balances.
+
+```go
+transfer = tb_types.Transfer{
+	ID:		uint128("2"),
+	PendingID:	uint128("1"),
+	Flags:		tb_types.TransferFlags{VoidPendingTransfer: true}.ToUint16(),
+	Timestamp:	0,
+}
+transfersRes, err = client.CreateTransfers([]tb_types.Transfer{transfer})
+log.Println(transfersRes, err)
+```
 
 ## Transfer Lookup
 

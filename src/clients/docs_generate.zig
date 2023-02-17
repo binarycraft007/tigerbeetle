@@ -191,19 +191,24 @@ const Generator = struct {
     // reasonable. Both so we can type-check as much as possible and also so
     // we can produce a building sample file for READMEs.
     fn make_aggregate_sample(self: Generator) ![]const u8 {
-        return try std.fmt.allocPrint(
-            self.allocator,
-            "{s}\n{s}\n{s}\n{s}\n{s}\n{s}\n{s}",
-            .{
-                self.language.test_main_prefix,
-                self.language.client_object_example,
-                self.language.create_accounts_example,
-                self.language.lookup_accounts_example,
-                self.language.create_transfers_example,
-                self.language.create_transfers_errors_example,
-                self.language.test_main_suffix,
-            },
-        );
+        var parts = [_][]const u8{
+            self.language.test_main_prefix,
+            self.language.client_object_example,
+            self.language.create_accounts_example,
+            self.language.account_flags_example,
+            self.language.lookup_accounts_example,
+            self.language.create_transfers_example,
+            self.language.create_transfers_errors_example,
+            self.language.transfer_flags_link_example,
+            self.language.transfer_flags_post_example,
+            self.language.transfer_flags_void_example,
+            self.language.test_main_suffix,
+        };
+        var aggregate = std.ArrayList(u8).init(self.allocator);
+        for (parts) |part| {
+            try aggregate.writer().print("{s}\n", .{part});
+        }
+        return aggregate.items;
     }
 
     fn make_and_format_aggregate_sample(self: Generator) ![]const u8 {

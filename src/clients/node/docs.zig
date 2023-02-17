@@ -86,10 +86,9 @@ pub const NodeDocs = Docs{
     ,
 
     .account_flags_example = 
-    \\const account0 = { ... account values ... };
-    \\const account1 = { ... account values ... };
+    \\const account0 = { /* account values */ };
+    \\const account1 = { /* account values */ };
     \\account0.flags = AccountFlags.linked | AccountFlags.debits_must_not_exceed_credits;
-    \\// Create the account
     \\const accountErrors = client.createAccounts([account0, account1]);
     ,
     .create_accounts_errors_example = 
@@ -202,19 +201,19 @@ pub const NodeDocs = Docs{
     ,
     .transfer_flags_post_example = 
     \\const post = {
-    \\  id: 2n, // u128, must correspond to the transfer id
-    \\  pending_id: 1n, // u128, id of the pending transfer
+    \\  id: 2n,
+    \\  pending_id: 1n,
     \\  flags: TransferFlags.post_pending_transfer,
-    \\  timestamp: 0n, // u64, Reserved: This will be set by the server.
+    \\  timestamp: 0n,
     \\};
     \\const errors = await client.createTransfers([post]);
     ,
     .transfer_flags_void_example = 
     \\const post = {
-    \\  id: 2n, // u128, must correspond to the transfer id
-    \\  pending_id: 1n, // u128, id of the pending transfer
+    \\  id: 2n,
+    \\  pending_id: 1n,
     \\  flags: TransferFlags.void_pending_transfer,
-    \\  timestamp: 0n, // u64, Reserved: This will be set by the server.
+    \\  timestamp: 0n,
     \\};
     \\const errors = await client.createTransfers([post]);
     ,
