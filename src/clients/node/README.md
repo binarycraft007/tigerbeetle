@@ -460,12 +460,12 @@ const errors = await client.createTransfers(batch);
 ### On Linux and macOS
 
 ```console
-$ npm install --include dev # This will automatically install and build everything you need.
+$ npm install --include dev
 ```
 
 ### On Windows
 
 ```console
-$ npm install --include dev # This will automatically install and build everything you need.
+$ npm install --include dev # NOTE! This does not work at the moment.
 ```
 

@@ -296,10 +296,10 @@ pub const NodeDocs = Docs{
     ,
 
     .developer_setup_bash_commands = 
-    \\npm install --include dev # This will automatically install and build everything you need.
+    \\npm install --include dev
     ,
     .developer_setup_windows_commands = 
-    \\npm install --include dev # This will automatically install and build everything you need.
+    \\npm install --include dev # NOTE! This does not work at the moment.
     ,
     .test_main_prefix = 
     \\const { createClient } = require("tigerbeetle-node");
