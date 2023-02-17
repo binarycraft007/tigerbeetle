@@ -65,25 +65,6 @@ pub const GoDocs = Docs{
     \\showing many features of the client.
     ,
 
-    .no_batch_example = 
-    \\for (let i = 0; i < len(transfers); i++) {
-    \\  errors := client.CreateTransfers(transfers[i]);
-    \\  // error handling omitted
-    \\}
-    ,
-
-    .batch_example = 
-    \\BATCH_SIZE := 8191
-    \\for i := 0; i < len(transfers); i += BATCH_SIZE {
-    \\  batch := BATCH_SIZE
-    \\  if i + BATCH_SIZE > len(transfers) {
-    \\    i = BATCH_SIZE - i
-    \\  }
-    \\  errors := client.CreateTransfers(transfers[i:i + batch])
-    \\  // error handling omitted
-    \\}
-    ,
-
     .client_object_example = 
     \\client, err := tb.NewClient(0, []string{"3000"}, 1)
     \\if err != nil {
@@ -131,6 +112,7 @@ pub const GoDocs = Docs{
     ,
 
     .account_flags_details = "",
+    .account_flags_example = "",
 
     .create_accounts_errors_example = 
     \\res, err := client.CreateAccounts([]tb_types.Account{account1, account2, account3})
@@ -198,6 +180,34 @@ pub const GoDocs = Docs{
     .create_transfers_documentation = "",
     .create_transfers_errors_example = "",
     .create_transfers_errors_documentation = "",
+
+    .no_batch_example = 
+    \\for (let i = 0; i < len(transfers); i++) {
+    \\  errors := client.CreateTransfers(transfers[i]);
+    \\  // error handling omitted
+    \\}
+    ,
+
+    .batch_example = 
+    \\BATCH_SIZE := 8191
+    \\for i := 0; i < len(transfers); i += BATCH_SIZE {
+    \\  batch := BATCH_SIZE
+    \\  if i + BATCH_SIZE > len(transfers) {
+    \\    i = BATCH_SIZE - i
+    \\  }
+    \\  errors := client.CreateTransfers(transfers[i:i + batch])
+    \\  // error handling omitted
+    \\}
+    ,
+
+    .transfer_flags_documentation = "",
+    .transfer_flags_link_example = "",
+    .transfer_flags_post_example = "",
+    .transfer_flags_void_example = "",
+
+    .lookup_transfers_example = "",
+
+    .linked_events_example = "",
 
     .developer_setup_bash_commands = 
     \\git clone https://github.com/tigerbeetledb/tigerbeetle

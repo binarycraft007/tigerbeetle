@@ -44,19 +44,7 @@ pub const NodeDocs = Docs{
     \\`BigInt(1)`.
     ,
     .examples = "",
-    .no_batch_example = 
-    \\for (let i = 0; i < transfers.len; i++) {
-    \\  const transferErrors = client.createTransfers(transfers[i]);
-    \\  // error handling omitted
-    \\}
-    ,
-    .batch_example = 
-    \\const BATCH_SIZE = 8191;
-    \\for (let i = 0; i < transfers.length; i += BATCH_SIZE) {
-    \\  const transferErrors = client.createTransfers(transfers.slice(i, Math.min(transfers.length, BATCH_SIZE)));
-    \\  // error handling omitted
-    \\}
-    ,
+
     .client_object_example = 
     \\const client = createClient({
     \\  cluster_id: 0,
@@ -194,6 +182,120 @@ pub const NodeDocs = Docs{
     \\`CreateTransferError` object, or you can 2) look up the error code in
     \\the `CreateTransferError` object for a human-readable string.
     ,
+
+    .no_batch_example = 
+    \\for (let i = 0; i < transfers.len; i++) {
+    \\  const transferErrors = client.createTransfers(transfers[i]);
+    \\  // error handling omitted
+    \\}
+    ,
+
+    .batch_example = 
+    \\const BATCH_SIZE = 8191;
+    \\for (let i = 0; i < transfers.length; i += BATCH_SIZE) {
+    \\  const transferErrors = client.createTransfers(transfers.slice(i, Math.min(transfers.length, BATCH_SIZE)));
+    \\  // error handling omitted
+    \\}
+    ,
+
+    .transfer_flags_documentation = 
+    \\To toggle behavior for a transfer, combine enum values stored in the
+    \\`TransferFlags` object (in TypeScript it is an actual enum) with
+    \\bitwise-or:
+    \\
+    \\* `TransferFlags.linked`
+    \\* `TransferFlags.pending`
+    \\* `TransferFlags.post_pending_transfer`
+    \\* `TransferFlags.void_pending_transfer`
+    ,
+    .transfer_flags_link_example = 
+    \\const transfer0 = { ... transfer values ... };
+    \\const transfer1 = { ... transfer values ... };
+    \\transfer0.flags = TransferFlags.linked;
+    \\// Create the transfer
+    \\const errors = client.createTransfers([transfer0, transfer1]);
+    ,
+    .transfer_flags_post_example = 
+    \\const post = {
+    \\  id: 2n, // u128, must correspond to the transfer id
+    \\  pending_id: 1n, // u128, id of the pending transfer
+    \\  flags: TransferFlags.post_pending_transfer,
+    \\  timestamp: 0n, // u64, Reserved: This will be set by the server.
+    \\};
+    \\const errors = await client.createTransfers([post]);
+    ,
+    .transfer_flags_void_example = 
+    \\const post = {
+    \\  id: 2n, // u128, must correspond to the transfer id
+    \\  pending_id: 1n, // u128, id of the pending transfer
+    \\  flags: TransferFlags.void_pending_transfer,
+    \\  timestamp: 0n, // u64, Reserved: This will be set by the server.
+    \\};
+    \\const errors = await client.createTransfers([post]);
+    ,
+
+    .lookup_transfers_example = 
+    \\const transfers = await client.lookupTransfers([1n, 2n]);
+    \\/* console.log(transfers);
+    \\ * [{
+    \\ *   id: 1n,
+    \\ *   pending_id: 0n,
+    \\ *   debit_account_id: 1n,
+    \\ *   credit_account_id: 2n,
+    \\ *   user_data: 0n,
+    \\ *   reserved: 0n,
+    \\ *   timeout: 0n,
+    \\ *   ledger: 1,
+    \\ *   code: 720,
+    \\ *   flags: 0,
+    \\ *   amount: 10n,
+    \\ *   timestamp: 1623062009212508993n,
+    \\ * }]
+    \\ */
+    ,
+
+    .linked_events_example = 
+    \\const batch = [];
+    \\let linkedFlag = 0;
+    \\linkedFlag |= CreateTransferFlags.linked;
+    \\
+    \\// An individual transfer (successful):
+    \\batch.push({ id: 1n, ... });
+    \\
+    \\// A chain of 4 transfers (the last transfer in the chain closes the chain with linked=false):
+    \\batch.push({ id: 2n, ..., flags: linkedFlag }); // Commit/rollback.
+    \\batch.push({ id: 3n, ..., flags: linkedFlag }); // Commit/rollback.
+    \\batch.push({ id: 2n, ..., flags: linkedFlag }); // Fail with exists
+    \\batch.push({ id: 4n, ..., flags: 0 });          // Fail without committing.
+    \\
+    \\// An individual transfer (successful):
+    \\// This should not see any effect from the failed chain above.
+    \\batch.push({ id: 2n, ..., flags: 0 });
+    \\
+    \\// A chain of 2 transfers (the first transfer fails the chain):
+    \\batch.push({ id: 2n, ..., flags: linkedFlag });
+    \\batch.push({ id: 3n, ..., flags: 0 });
+    \\
+    \\// A chain of 2 transfers (successful):
+    \\batch.push({ id: 3n, ..., flags: linkedFlag });
+    \\batch.push({ id: 4n, ..., flags: 0 });
+    \\
+    \\const errors = await client.createTransfers(batch);
+    \\
+    \\/**
+    \\ * console.log(errors);
+    \\ * [
+    \\ *  { index: 1, error: 1 },  // linked_event_failed
+    \\ *  { index: 2, error: 1 },  // linked_event_failed
+    \\ *  { index: 3, error: 25 }, // exists
+    \\ *  { index: 4, error: 1 },  // linked_event_failed
+    \\ * 
+    \\ *  { index: 6, error: 17 }, // exists_with_different_flags
+    \\ *  { index: 7, error: 1 },  // linked_event_failed
+    \\ * ]
+    \\ */
+    ,
+
     .developer_setup_bash_commands = 
     \\npm install --include dev # This will automatically install and build everything you need.
     ,

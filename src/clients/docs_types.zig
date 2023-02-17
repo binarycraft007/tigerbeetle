@@ -36,6 +36,15 @@ pub const Docs = struct {
     batch_example: []const u8,
     no_batch_example: []const u8,
 
+    transfer_flags_documentation: []const u8,
+    transfer_flags_link_example: []const u8,
+    transfer_flags_post_example: []const u8,
+    transfer_flags_void_example: []const u8,
+
+    lookup_transfers_example: []const u8,
+
+    linked_events_example: []const u8,
+
     developer_setup_bash_commands: []const u8,
     developer_setup_windows_commands: []const u8,
     test_linux_docker_image: []const u8,

@@ -127,6 +127,9 @@ The account flags value is a bitfield. See details for
 these flags in the [Accounts
 reference](https://docs.tigerbeetle.com/reference/accounts#flags).
 
+For example, to link `account0` and `account1`, where `account0`
+additionally has the `debits_must_not_exceed_credits` constraint:
+
 ### Response and Errors
 
 The response is an empty array if all accounts were
@@ -272,83 +275,71 @@ for i := 0; i < len(transfers); i += BATCH_SIZE {
 }
 ```
 
-## Complete sample file
+## Transfer Flags
 
-```go
-package main
+The transfer `flags` value is a bitfield. See details for these flags in
+the [Transfers
+reference](https://docs.tigerbeetle.com/reference/transfers#flags).
 
-import "log"
+For example, to link `transfer0` and `transfer1`:
 
-import tb "github.com/tigerbeetledb/tigerbeetle-go"
-import tb_types "github.com/tigerbeetledb/tigerbeetle-go/pkg/types"
+### Two-Phase Transfers
 
-func uint128(value string) tb_types.Uint128 {
-	x, err := tb_types.HexStringToUint128(value)
-	if err != nil {
-		panic(err)
-	}
-	return x
-}
+Two-phase transfers are supported natively by toggling the appropriate
+flag. TigerBeetle will then adjust the `credits_pending` and
+`debits_pending` fields of the appropriate accounts. A corresponding
+post pending transfer then needs to be sent to post or void the
+transfer.
 
-func main() {
-	client, err := tb.NewClient(0, []string{"3000"}, 1)
-	if err != nil {
-		log.Printf("Error creating client: %s", err)
-		return
-	}
-	defer client.Close()
-	// Create two accounts
-	accountsRes, err := client.CreateAccounts([]tb_types.Account{
-		{
-			ID:     uint128("1"),
-			Ledger: 1,
-			Code:   1,
-		},
-		{
-			ID:     uint128("2"),
-			Ledger: 1,
-			Code:   1,
-		},
-	})
-	if err != nil {
-		log.Printf("Error creating accounts: %s", err)
-		return
-	}
+#### Post a Pending Transfer
 
-	for _, err := range accountsRes {
-		log.Printf("Error creating account %d: %s", err.Index, err.Result)
-		return
-	}
-	accounts, err := client.LookupAccounts([]tb_types.Uint128{uint128("1"), uint128("2")})
-	if err != nil {
-		log.Printf("Could not fetch accounts: %s", err)
-		return
-	}
-	for _, account := range accounts {
-		log.Println(account)
-	}
-	transfer := tb_types.Transfer{
-		ID:              uint128("1"),
-		DebitAccountID:  uint128("1"),
-		CreditAccountID: uint128("2"),
-		Ledger:          1,
-		Code:            1,
-		Amount:          10,
-	}
+With `flags` set to `post_pending_transfer`,
+TigerBeetle will post the transfer. TigerBeetle will atomically roll
+back the changes to `debits_pending` and `credits_pending` of the
+appropriate accounts and apply them to the `debits_posted` and
+`credits_posted` balances.
 
-	transfersRes, err := client.CreateTransfers([]tb_types.Transfer{transfer})
-	if err != nil {
-		log.Printf("Error creating transfer batch: %s", err)
-		return
-	}
+#### Void a Pending Transfer
 
-	for _, err := range transfersRes {
-		log.Printf("Batch transfer at %d failed to create: %s", err.Index, err.Result)
-		return
-	}
-}
+In contrast, with `flags` set to `void_pending_transfer`,
+TigerBeetle will void the transfer. TigerBeetle will roll
+back the changes to `debits_pending` and `credits_pending` of the
+appropriate accounts and **not** apply them to the `debits_posted` and
+`credits_posted` balances.
 
-```
+## Transfer Lookup
+
+NOTE: While transfer lookup exists, it is not a flexible query API. We
+are developing query APIs and there will be new methods for querying
+transfers in the future.
+
+Transfer lookup is batched, like transfer creation. Pass in all `id`s to
+fetch, and matched transfers are returned.
+
+If no transfer matches an `id`, no object is returned for that
+transfer. So the order of transfers in the response is not necessarily
+the same as the order of `id`s in the request. You can refer to the
+`id` field in the response to distinguish transfers.
+
+In this example, transfer `1` exists while transfer `2` does not.
+
+## Linked Events
+
+When the `linked` flag is specified for an account when creating accounts or
+a transfer when creating transfers, it links that event with the next event in the
+batch, to create a chain of events, of arbitrary length, which all
+succeed or fail together. The tail of a chain is denoted by the first
+event without this flag. The last event in a batch may therefore never
+have the `linked` flag set as this would leave a chain
+open-ended. Multiple chains or individual events may coexist within a
+batch to succeed or fail independently.
+
+Events within a chain are executed within order, or are rolled back on
+error, so that the effect of each event in the chain is visible to the
+next, and so that the chain is either visible or invisible as a unit
+to subsequent events after the chain. The event that was the first to
+break the chain will have a unique error result. Other events in the
+chain will have their error result set to `linked_event_failed`.
 
 ## Development Setup
 
