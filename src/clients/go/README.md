@@ -236,11 +236,6 @@ if err != nil {
 	log.Printf("Error creating transfer batch: %s", err)
 	return
 }
-
-for _, err := range transfersRes {
-	log.Printf("Batch transfer at %d failed to create: %s", err.Index, err.Result)
-	return
-}
 ```
 
 ### Response and Errors
@@ -254,9 +249,12 @@ transfer in the request batch.
 See all error conditions in the [create_transfers
 reference](https://docs.tigerbeetle.com/reference/operations/create_transfers).
 
-The example above shows that the transfer in index 1 failed with
-error 1. This error here means that `transfer1` and `transfer3` were
-created successfully. But `transfer2` was not created.
+```go
+for _, err := range transfersRes {
+	log.Printf("Batch transfer at %d failed to create: %s", err.Index, err.Result)
+	return
+}
+```
 
 ## Batching
 

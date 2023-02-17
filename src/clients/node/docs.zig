@@ -148,18 +148,9 @@ pub const NodeDocs = Docs{
     \\  timestamp: 0n,
     \\};
     \\const transferErrors = await client.createTransfers([transfer]);
-    \\for (const error of transferErrors) {
-    \\  switch (error.code) {
-    \\    default:
-    \\      console.error(`Batch transfer at ${error.index} failed to create: ${CreateAccountError[error.code]}.`);
-    \\  }
-    \\}
     ,
     .create_transfers_documentation = "",
     .create_transfers_errors_example = 
-    \\const transferErrors = await client.createTransfers([transfer1, transfer2, transfer3]);
-    \\
-    \\// transferErrors = [{ index: 1, code: 1 }];
     \\for (const error of transferErrors) {
     \\  switch (error.code) {
     \\    case CreateTransferError.exists:

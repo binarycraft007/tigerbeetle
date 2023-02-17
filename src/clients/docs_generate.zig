@@ -193,13 +193,14 @@ const Generator = struct {
     fn make_aggregate_sample(self: Generator) ![]const u8 {
         return try std.fmt.allocPrint(
             self.allocator,
-            "{s}\n{s}\n{s}\n{s}\n{s}\n{s}",
+            "{s}\n{s}\n{s}\n{s}\n{s}\n{s}\n{s}",
             .{
                 self.language.test_main_prefix,
                 self.language.client_object_example,
                 self.language.create_accounts_example,
                 self.language.lookup_accounts_example,
                 self.language.create_transfers_example,
+                self.language.create_transfers_errors_example,
                 self.language.test_main_suffix,
             },
         );
@@ -364,11 +365,7 @@ const Generator = struct {
             \\reference](https://docs.tigerbeetle.com/reference/operations/create_transfers).
         );
         mw.code(language.markdown_name, language.create_transfers_errors_example);
-        mw.paragraph(
-            \\The example above shows that the transfer in index 1 failed with
-            \\error 1. This error here means that `transfer1` and `transfer3` were
-            \\created successfully. But `transfer2` was not created.
-        );
+
         mw.paragraph(language.create_transfers_errors_documentation);
 
         mw.header(2, "Batching");

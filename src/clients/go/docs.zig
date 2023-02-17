@@ -178,14 +178,14 @@ pub const GoDocs = Docs{
     \\	log.Printf("Error creating transfer batch: %s", err)
     \\	return
     \\}
-    \\
+    ,
+    .create_transfers_documentation = "",
+    .create_transfers_errors_example =
     \\for _, err := range transfersRes {
     \\	log.Printf("Batch transfer at %d failed to create: %s", err.Index, err.Result)
     \\	return
     \\}
     ,
-    .create_transfers_documentation = "",
-    .create_transfers_errors_example = "",
     .create_transfers_errors_documentation = "",
 
     .no_batch_example = 
