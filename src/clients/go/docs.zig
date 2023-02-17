@@ -83,17 +83,19 @@ pub const GoDocs = Docs{
     ,
 
     .create_accounts_example = 
-    \\// Create two accounts
     \\accountsRes, err := client.CreateAccounts([]tb_types.Account{
     \\	{
-    \\		ID:     uint128("1"),
-    \\		Ledger: 1,
-    \\		Code:   1,
-    \\	},
-    \\	{
-    \\		ID:     uint128("2"),
-    \\		Ledger: 1,
-    \\		Code:   1,
+    \\		ID:     	uint128("137"),
+    \\		UserData:	x,
+    \\		Reserved:   	nil,
+    \\		Ledger:		1,
+    \\		Code:   	718,
+    \\		Flags:   	0,
+    \\		DebitsPending: 	0,
+    \\		DebitsPosted: 	0,
+    \\		CreditsPending:	0,
+    \\		CreditsPosted: 	0,
+    \\		Timestamp: 	0,
     \\	},
     \\})
     \\if err != nil {

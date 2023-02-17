@@ -54,17 +54,17 @@ pub const NodeDocs = Docs{
     .client_object_documentation = "",
     .create_accounts_example = 
     \\const account = {
-    \\  id: 137n, // u128
-    \\  user_data: 0n, // u128, opaque third-party identifier to link this account to an external entity:
-    \\  reserved: Buffer.alloc(48, 0), // [48]u8
-    \\  ledger: 1,   // u32, ledger value
-    \\  code: 718, // u16, a chart of accounts code describing the type of account (e.g. clearing, settlement)
-    \\  flags: 0,  // u16
-    \\  debits_pending: 0n,  // u64
-    \\  debits_posted: 0n,  // u64
-    \\  credits_pending: 0n, // u64
-    \\  credits_posted: 0n, // u64
-    \\  timestamp: 0n, // u64, Reserved: This will be set by the server.
+    \\  id: 137n,
+    \\  user_data: 0n,
+    \\  reserved: Buffer.alloc(48, 0),
+    \\  ledger: 1,
+    \\  code: 718,
+    \\  flags: 0,
+    \\  debits_pending: 0n,
+    \\  debits_posted: 0n,
+    \\  credits_pending: 0n,
+    \\  credits_posted: 0n,
+    \\  timestamp: 0n,
     \\};
     \\
     \\const accountErrors = await client.createAccounts([account]);
