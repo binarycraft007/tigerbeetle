@@ -113,10 +113,10 @@ pub const GoDocs = Docs{
     \\The `tb_types` package can be imported from `"github.com/tigerbeetledb/tigerbeetle-go/pkg/types"`.
     ,
 
-    .account_flags_details = 
+    .account_flags_documentation = 
     \\To toggle behavior for an account, use the `AccountFlags` struct
     \\to combine enum values and generate a `uint16`. Here are a
-    \\few examples, but any combination of these flags is ok.
+    \\few examples:
     \\
     \\* `AccountFlags{Linked: true}.ToUint16()`
     \\* `AccountFlags{DebitsMustNotExceedCredits: true}.ToUint16()`
@@ -207,7 +207,16 @@ pub const GoDocs = Docs{
     \\}
     ,
 
-    .transfer_flags_documentation = "",
+    .transfer_flags_documentation =
+    \\To toggle behavior for an account, use the `TransferFlags` struct
+    \\to combine enum values and generate a `uint16`. Here are a
+    \\few examples:
+    \\
+    \\* `TransferFlags{Linked: true}.ToUint16()`
+    \\* `TransferFlags{Pending: true}.ToUint16()`
+    \\* `TransferFlags{PostPendingTransfer: true}.ToUint16()`
+    \\* `TransferFlags{VoidPendingTransfer: true}.ToUint16()`
+    ,
     .transfer_flags_link_example = "",
     .transfer_flags_post_example = "",
     .transfer_flags_void_example = "",

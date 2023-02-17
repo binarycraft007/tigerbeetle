@@ -135,7 +135,7 @@ reference](https://docs.tigerbeetle.com/reference/accounts#flags).
 
 To toggle behavior for an account, use the `AccountFlags` struct
 to combine enum values and generate a `uint16`. Here are a
-few examples, but any combination of these flags is ok.
+few examples:
 
 * `AccountFlags{Linked: true}.ToUint16()`
 * `AccountFlags{DebitsMustNotExceedCredits: true}.ToUint16()`
@@ -293,6 +293,15 @@ for i := 0; i < len(transfers); i += BATCH_SIZE {
 The transfer `flags` value is a bitfield. See details for these flags in
 the [Transfers
 reference](https://docs.tigerbeetle.com/reference/transfers#flags).
+
+To toggle behavior for an account, use the `TransferFlags` struct
+to combine enum values and generate a `uint16`. Here are a
+few examples:
+
+* `TransferFlags{Linked: true}.ToUint16()`
+* `TransferFlags{Pending: true}.ToUint16()`
+* `TransferFlags{PostPendingTransfer: true}.ToUint16()`
+* `TransferFlags{VoidPendingTransfer: true}.ToUint16()`
 
 For example, to link `transfer0` and `transfer1`:
 

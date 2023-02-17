@@ -74,7 +74,7 @@ pub const NodeDocs = Docs{
     \\}
     ,
     .create_accounts_documentation = "",
-    .account_flags_details = 
+    .account_flags_documentation = 
     \\To toggle behavior for an account, combine enum values stored in the
     \\`AccountFlags` object (in TypeScript it is an actual enum) with
     \\bitwise-or:

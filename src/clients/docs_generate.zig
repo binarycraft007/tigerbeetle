@@ -299,7 +299,7 @@ const Generator = struct {
             \\these flags in the [Accounts
             \\reference](https://docs.tigerbeetle.com/reference/accounts#flags).
         );
-        mw.paragraph(language.account_flags_details);
+        mw.paragraph(language.account_flags_documentation);
 
         mw.paragraph(
             \\For example, to link `account0` and `account1`, where `account0`

@@ -177,7 +177,8 @@ In this example, transfer `137` exists while transfer `138` does not.
 
 ```javascript
 const accounts = await client.lookupAccounts([137n, 138n]);
-/* console.log(accounts);
+console.log(accounts);
+/*    
  * [{
  *   id: 137n,
  *   user_data: 0n,
@@ -203,32 +204,20 @@ reference](https://docs.tigerbeetle.com/reference/transfers).
 
 ```javascript
 const transfer = {
-  id: 1n, // u128
-  pending_id: 0n, // u128
-  // Double-entry accounting:
-  debit_account_id: 1n,  // u128
-  credit_account_id: 2n, // u128
-  // Opaque third-party identifier to link this transfer to an external entity:
-  user_data: 0n, // u128  
-  reserved: 0n, // u128
-  // Timeout applicable for a pending/2-phase transfer:
-  timeout: 0n, // u64, in nano-seconds.
-  // Collection of accounts usually grouped by the currency: 
-  // You can't transfer money between accounts with different ledgers:
-  ledger: 1,  // u32, ledger for transfer (e.g. currency).
-  // Chart of accounts code describing the reason for the transfer:
-  code: 720,  // u16, (e.g. deposit, settlement)
-  flags: 0, // u16
-  amount: 10n, // u64
-  timestamp: 0n, //u64, Reserved: This will be set by the server.
+  id: 1n,
+  pending_id: 0n,
+  debit_account_id: 1n,
+  credit_account_id: 2n,
+  user_data: 0n,
+  reserved: 0n,
+  timeout: 0n,
+  ledger: 1,
+  code: 720,
+  flags: 0,
+  amount: 10n,
+  timestamp: 0n,
 };
 const transferErrors = await client.createTransfers([transfer]);
-for (const error of transferErrors) {
-  switch (error.code) {
-    default:
-      console.error(`Batch transfer at ${error.index} failed to create: ${CreateAccountError[error.code]}.`);
-  }
-}
 ```
 
 ### Response and Errors
@@ -243,9 +232,6 @@ See all error conditions in the [create_transfers
 reference](https://docs.tigerbeetle.com/reference/operations/create_transfers).
 
 ```javascript
-const transferErrors = await client.createTransfers([transfer1, transfer2, transfer3]);
-
-// transferErrors = [{ index: 1, code: 1 }];
 for (const error of transferErrors) {
   switch (error.code) {
     case CreateTransferError.exists:
@@ -256,10 +242,6 @@ for (const error of transferErrors) {
   }
 }
 ```
-
-The example above shows that the transfer in index 1 failed with
-error 1. This error here means that `transfer1` and `transfer3` were
-created successfully. But `transfer2` was not created.
 
 To handle errors you can either 1) exactly match error codes returned
 from `client.createTransfers` with enum values in the

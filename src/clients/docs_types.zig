@@ -23,7 +23,7 @@ pub const Docs = struct {
     create_accounts_errors_example: []const u8,
     create_accounts_errors_documentation: []const u8,
 
-    account_flags_details: []const u8,
+    account_flags_documentation: []const u8,
     account_flags_example: []const u8,
 
     lookup_accounts_example: []const u8,
