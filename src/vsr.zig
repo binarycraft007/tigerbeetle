@@ -234,6 +234,8 @@ pub const Header = extern struct {
 
     /// The op number of the latest prepare that may or may not yet be committed. Uncommitted ops
     /// may be replaced by different ops if they do not survive through a view change.
+    ///
+    /// * A `request_headers` sets this to the maximum op requested (inclusive).
     op: u64 = 0,
 
     /// The commit number of the latest committed prepare. Committed ops are immutable.
@@ -241,6 +243,7 @@ pub const Header = extern struct {
     /// * A `do_view_change` sets this to `commit_min`, to indicate the sending replica's progress.
     ///   The sending replica may continue to commit after sending the DVC.
     /// * A `start_view` sets this to `commit_max`.
+    /// * A `request_headers` sets this to the minimum op requested (inclusive).
     commit: u64 = 0,
 
     /// This field is used in various ways:
@@ -1311,19 +1314,18 @@ const ViewChangeHeadersArray = struct {
                 // Backup: these headers are stored in the superblock's vsr_headers.
                 switch (chain) {
                     .chain_sequence => {},
-                    // Gaps are due to either:
-                    // - entries before checkpoint, which are not repaired, or
+                    // Gaps are due to:
                     // - backup missed prepares and has not repaired headers. (Immediately after
                     //   receiving a start_view this is not a concern, but the view_durable_update()
                     //   may be delayed if another is in progress).
                     .chain_view, .chain_gap => {
-                        assert(op <= options.op_checkpoint or !current.log_view_primary);
+                        assert(!current.log_view_primary);
                         break;
                     },
                     // Breaks are due to:
-                    // - entries before checkpoint, which are not repaired
+                    // - entries before checkpoint, which are not repaired by backups
                     .chain_break => {
-                        assert(op <= options.op_checkpoint);
+                        assert(!current.log_view_primary and op <= options.op_checkpoint);
                         break;
                     },
                 }
@@ -1359,13 +1361,14 @@ const ViewChangeHeadersArray = struct {
             } else if (current.log_view_primary and command_durable != .start_view) {
                 switch (chain) {
                     .chain_sequence => {},
-                    .chain_view => {},
+                    .chain_view, .chain_gap, .chain_break => unreachable,
+                    //.chain_view => {},
                     // The retiring primary may have gap-breaks or breaks in its suffix iff:
                     // - it didn't finish repairs before the second view-change, and
                     // - some uncommitted ops were truncated during the first view-change.
                     //   (Truncation "moves" the suffix backwards).
-                    .chain_gap => break,
-                    .chain_break => break,
+                    //.chain_gap => break,
+                    //.chain_break => break,
                 }
                 suffix_done = op <= op_dvc_anchor;
             } else if (!current.log_view_primary and command_durable == .start_view) {
