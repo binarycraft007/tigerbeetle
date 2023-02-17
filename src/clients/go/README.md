@@ -71,8 +71,12 @@ addresses for all replicas in the cluster. The cluster
 ID and replica addresses are both chosen by the system that
 starts the TigerBeetle cluster.
 
+In this example the cluster ID is `0` and there are
+three replicas running on ports `3000`, `3001`, and
+`3002`.
+
 ```go
-client, err := tb.NewClient(0, []string{"3000"}, 1)
+client, err := tb.NewClient(0, []string{"3000", "3001", "3002"}, 0)
 if err != nil {
 	log.Printf("Error creating client: %s", err)
 	return

@@ -68,7 +68,7 @@ pub const GoDocs = Docs{
     ,
 
     .client_object_example = 
-    \\client, err := tb.NewClient(0, []string{"3000"}, 1)
+    \\client, err := tb.NewClient(0, []string{"3000", "3001", "3002"}, 0)
     \\if err != nil {
     \\	log.Printf("Error creating client: %s", err)
     \\	return

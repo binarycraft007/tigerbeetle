@@ -56,6 +56,10 @@ addresses for all replicas in the cluster. The cluster
 ID and replica addresses are both chosen by the system that
 starts the TigerBeetle cluster.
 
+In this example the cluster ID is `0` and there are
+three replicas running on ports `3000`, `3001`, and
+`3002`.
+
 ```javascript
 const client = createClient({
   cluster_id: 0,
