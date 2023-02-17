@@ -202,6 +202,7 @@ const Generator = struct {
             self.language.transfer_flags_link_example,
             self.language.transfer_flags_post_example,
             self.language.transfer_flags_void_example,
+            self.language.lookup_transfers_example,
             self.language.test_main_suffix,
         };
         var aggregate = std.ArrayList(u8).init(self.allocator);

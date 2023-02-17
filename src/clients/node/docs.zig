@@ -89,7 +89,7 @@ pub const NodeDocs = Docs{
     \\const account0 = { /* ... account values ... */ };
     \\const account1 = { /* ... account values ... */ };
     \\account0.flags = AccountFlags.linked | AccountFlags.debits_must_not_exceed_credits;
-    \\const accountErrors = client.createAccounts([account0, account1]);
+    \\const accountErrors = await client.createAccounts([account0, account1]);
     ,
     .create_accounts_errors_example = 
     \\const accountErrors = await client.createAccounts([account1, account2, account3]);
@@ -169,7 +169,7 @@ pub const NodeDocs = Docs{
 
     .no_batch_example = 
     \\for (let i = 0; i < transfers.len; i++) {
-    \\  const transferErrors = client.createTransfers(transfers[i]);
+    \\  const transferErrors = await client.createTransfers(transfers[i]);
     \\  // error handling omitted
     \\}
     ,
@@ -177,7 +177,7 @@ pub const NodeDocs = Docs{
     .batch_example = 
     \\const BATCH_SIZE = 8191;
     \\for (let i = 0; i < transfers.length; i += BATCH_SIZE) {
-    \\  const transferErrors = client.createTransfers(transfers.slice(i, Math.min(transfers.length, BATCH_SIZE)));
+    \\  const transferErrors = await client.createTransfers(transfers.slice(i, Math.min(transfers.length, BATCH_SIZE)));
     \\  // error handling omitted
     \\}
     ,
@@ -197,7 +197,7 @@ pub const NodeDocs = Docs{
     \\const transfer1 = { /* ... transfer values ... */ };
     \\transfer0.flags = TransferFlags.linked;
     \\// Create the transfer
-    \\const errors = client.createTransfers([transfer0, transfer1]);
+    \\const errors = await client.createTransfers([transfer0, transfer1]);
     ,
     .transfer_flags_post_example = 
     \\const post = {

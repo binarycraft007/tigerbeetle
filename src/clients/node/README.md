@@ -121,7 +121,7 @@ additionally has the `debits_must_not_exceed_credits` constraint:
 const account0 = { /* ... account values ... */ };
 const account1 = { /* ... account values ... */ };
 account0.flags = AccountFlags.linked | AccountFlags.debits_must_not_exceed_credits;
-const accountErrors = client.createAccounts([account0, account1]);
+const accountErrors = await client.createAccounts([account0, account1]);
 ```
 
 ### Response and Errors
@@ -256,7 +256,7 @@ one at a time like so:
 
 ```javascript
 for (let i = 0; i < transfers.len; i++) {
-  const transferErrors = client.createTransfers(transfers[i]);
+  const transferErrors = await client.createTransfers(transfers[i]);
   // error handling omitted
 }
 ```
@@ -270,7 +270,7 @@ is 8191.
 ```javascript
 const BATCH_SIZE = 8191;
 for (let i = 0; i < transfers.length; i += BATCH_SIZE) {
-  const transferErrors = client.createTransfers(transfers.slice(i, Math.min(transfers.length, BATCH_SIZE)));
+  const transferErrors = await client.createTransfers(transfers.slice(i, Math.min(transfers.length, BATCH_SIZE)));
   // error handling omitted
 }
 ```
@@ -297,7 +297,7 @@ const transfer0 = { /* ... transfer values ... */ };
 const transfer1 = { /* ... transfer values ... */ };
 transfer0.flags = TransferFlags.linked;
 // Create the transfer
-const errors = client.createTransfers([transfer0, transfer1]);
+const errors = await client.createTransfers([transfer0, transfer1]);
 ```
 
 ### Two-Phase Transfers
