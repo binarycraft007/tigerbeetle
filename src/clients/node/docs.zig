@@ -114,7 +114,8 @@ pub const NodeDocs = Docs{
     ,
     .lookup_accounts_example = 
     \\const accounts = await client.lookupAccounts([137n, 138n]);
-    \\/* console.log(accounts);
+    \\console.log(accounts);
+    \\/*    
     \\ * [{
     \\ *   id: 137n,
     \\ *   user_data: 0n,

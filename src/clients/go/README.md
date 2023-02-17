@@ -212,14 +212,12 @@ distinguish accounts.
 In this example, transfer `137` exists while transfer `138` does not.
 
 ```go
-accounts, err := client.LookupAccounts([]tb_types.Uint128{uint128("1"), uint128("2")})
+accounts, err := client.LookupAccounts([]tb_types.Uint128{uint128("137"), uint128("138")})
 if err != nil {
 	log.Printf("Could not fetch accounts: %s", err)
 	return
 }
-for _, account := range accounts {
-	log.Println(account)
-}    
+log.Println(accounts)
 ```
 
 ## Create Transfers

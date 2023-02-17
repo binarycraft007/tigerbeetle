@@ -161,14 +161,12 @@ pub const GoDocs = Docs{
     \\the `CreateAccountError` object for a human-readable string.
     ,
     .lookup_accounts_example = 
-    \\accounts, err := client.LookupAccounts([]tb_types.Uint128{uint128("1"), uint128("2")})
+    \\accounts, err := client.LookupAccounts([]tb_types.Uint128{uint128("137"), uint128("138")})
     \\if err != nil {
     \\	log.Printf("Could not fetch accounts: %s", err)
     \\	return
     \\}
-    \\for _, account := range accounts {
-    \\	log.Println(account)
-    \\}    
+    \\log.Println(accounts)
     ,
 
     .create_transfers_example = 
