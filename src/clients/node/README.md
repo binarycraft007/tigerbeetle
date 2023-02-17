@@ -118,10 +118,9 @@ For example, to link `account0` and `account1`, where `account0`
 additionally has the `debits_must_not_exceed_credits` constraint:
 
 ```javascript
-const account0 = { ... account values ... };
-const account1 = { ... account values ... };
+const account0 = { /* ... account values ... */ };
+const account1 = { /* ... account values ... */ };
 account0.flags = AccountFlags.linked | AccountFlags.debits_must_not_exceed_credits;
-// Create the account
 const accountErrors = client.createAccounts([account0, account1]);
 ```
 
@@ -294,8 +293,8 @@ bitwise-or:
 For example, to link `transfer0` and `transfer1`:
 
 ```javascript
-const transfer0 = { ... transfer values ... };
-const transfer1 = { ... transfer values ... };
+const transfer0 = { /* ... transfer values ... */ };
+const transfer1 = { /* ... transfer values ... */ };
 transfer0.flags = TransferFlags.linked;
 // Create the transfer
 const errors = client.createTransfers([transfer0, transfer1]);
@@ -319,10 +318,10 @@ appropriate accounts and apply them to the `debits_posted` and
 
 ```javascript
 const post = {
-  id: 2n, // u128, must correspond to the transfer id
-  pending_id: 1n, // u128, id of the pending transfer
+  id: 2n,
+  pending_id: 1n,
   flags: TransferFlags.post_pending_transfer,
-  timestamp: 0n, // u64, Reserved: This will be set by the server.
+  timestamp: 0n,
 };
 const errors = await client.createTransfers([post]);
 ```
@@ -337,10 +336,10 @@ appropriate accounts and **not** apply them to the `debits_posted` and
 
 ```javascript
 const post = {
-  id: 2n, // u128, must correspond to the transfer id
-  pending_id: 1n, // u128, id of the pending transfer
+  id: 2n,
+  pending_id: 1n,
   flags: TransferFlags.void_pending_transfer,
-  timestamp: 0n, // u64, Reserved: This will be set by the server.
+  timestamp: 0n,
 };
 const errors = await client.createTransfers([post]);
 ```

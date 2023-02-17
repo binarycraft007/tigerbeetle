@@ -86,8 +86,8 @@ pub const NodeDocs = Docs{
     ,
 
     .account_flags_example = 
-    \\const account0 = { /* account values */ };
-    \\const account1 = { /* account values */ };
+    \\const account0 = { /* ... account values ... */ };
+    \\const account1 = { /* ... account values ... */ };
     \\account0.flags = AccountFlags.linked | AccountFlags.debits_must_not_exceed_credits;
     \\const accountErrors = client.createAccounts([account0, account1]);
     ,
@@ -193,8 +193,8 @@ pub const NodeDocs = Docs{
     \\* `TransferFlags.void_pending_transfer`
     ,
     .transfer_flags_link_example = 
-    \\const transfer0 = { ... transfer values ... };
-    \\const transfer1 = { ... transfer values ... };
+    \\const transfer0 = { /* ... transfer values ... */ };
+    \\const transfer1 = { /* ... transfer values ... */ };
     \\transfer0.flags = TransferFlags.linked;
     \\// Create the transfer
     \\const errors = client.createTransfers([transfer0, transfer1]);
