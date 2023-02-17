@@ -318,6 +318,25 @@ jobs:
       - if: github.ref == 'refs/heads/main'
         run: ./scripts/confirm_image.sh ghcr.io/${{ env.IMAGE_NAME }}@${{ steps.docker_build_debug.outputs.imageid }} --want-debug
 
+  docs-build:
+    runs-on: ubuntu-latest
+    steps:
+     - uses: actions/checkout@v3
+     - run: ./scripts/install_zig.sh
+     # The validate step takes a really long time
+     - run: cd src/clients && ../../zig run docs_generate.zig -- --no-validate
+     - run: ./scripts/fail_on_diff.sh
+
+  # The validate step takes a really long time, so do a complete run with validation only after merged.
+  docs-validate:
+    runs-on: ubuntu-latest
+    steps:
+     - uses: actions/checkout@v3
+     - run: ./scripts/install_zig.sh
+       if: github.ref == 'refs/heads/main'
+     - run: cd src/clients && ../../zig run docs_generate.zig
+       if: github.ref == 'refs/heads/main'
+
   # Keep this around because Github CI looks for this job of this name.
   test:
     runs-on: ubuntu-latest
@@ -350,6 +369,8 @@ jobs:
       - build-tools
       - build-and-push
       - build-and-push-debug
+      - docs-build
+      - docs-validate
 
     runs-on: ubuntu-latest
     steps:
