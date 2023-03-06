@@ -72,7 +72,7 @@ pub const IO = struct {
                 // Round up sub-millisecond expire times to the next millisecond
                 const expires_ms = (expires_ns + (std.time.ns_per_ms / 2)) / std.time.ns_per_ms;
                 // Saturating cast to DWORD milliseconds
-                const expires = std.math.cast(os.windows.DWORD, expires_ms) catch std.math.maxInt(os.windows.DWORD);
+                const expires = std.math.cast(os.windows.DWORD, expires_ms) orelse std.math.maxInt(os.windows.DWORD);
                 // max DWORD is reserved for INFINITE so cap the cast at max - 1
                 timeout_ms = if (expires == os.windows.INFINITE) expires - 1 else expires;
             }
@@ -87,7 +87,7 @@ pub const IO = struct {
                 };
 
                 var events: [64]os.windows.OVERLAPPED_ENTRY = undefined;
-                const num_events = os.windows.GetQueuedCompletionStatusEx(
+                const num_events: u32 = os.windows.GetQueuedCompletionStatusEx(
                     self.iocp,
                     &events,
                     io_timeout,
@@ -160,7 +160,7 @@ pub const IO = struct {
     pub const Completion = struct {
         next: ?*Completion,
         context: ?*anyopaque,
-        callback: fn (Context) void,
+        callback: *const fn (Context) void,
         operation: Operation,
 
         const Context = struct {
@@ -276,7 +276,7 @@ pub const IO = struct {
         self: *IO,
         comptime Context: type,
         context: Context,
-        comptime callback: fn (
+        comptime callback: *const fn (
             context: Context,
             completion: *Completion,
             result: AcceptError!os.socket_t,
@@ -356,14 +356,14 @@ pub const IO = struct {
                     }
 
                     // destroy the client_socket we created if we get a non WouldBlock error
-                    errdefer |result| {
-                        _ = result catch |err| switch (err) {
+                    errdefer |err| {
+                        switch (err) {
                             error.WouldBlock => {},
                             else => {
                                 os.closeSocket(op.client_socket);
                                 op.client_socket = INVALID_SOCKET;
                             },
-                        };
+                        }
                     }
 
                     return switch (os.windows.ws2_32.WSAGetLastError()) {
@@ -398,7 +398,7 @@ pub const IO = struct {
         self: *IO,
         comptime Context: type,
         context: Context,
-        comptime callback: fn (
+        comptime callback: *const fn (
             context: Context,
             completion: *Completion,
             result: ConnectError!void,
@@ -453,7 +453,7 @@ pub const IO = struct {
                             else => |e| return e,
                         };
 
-                        const LPFN_CONNECTEX = fn (
+                        const LPFN_CONNECTEX = *const fn (
                             Socket: os.windows.ws2_32.SOCKET,
                             SockAddr: *const os.windows.ws2_32.sockaddr,
                             SockLen: os.socklen_t,
@@ -533,7 +533,7 @@ pub const IO = struct {
         self: *IO,
         comptime Context: type,
         context: Context,
-        comptime callback: fn (
+        comptime callback: *const fn (
             context: Context,
             completion: *Completion,
             result: SendError!usize,
@@ -633,7 +633,7 @@ pub const IO = struct {
         self: *IO,
         comptime Context: type,
         context: Context,
-        comptime callback: fn (
+        comptime callback: *const fn (
             context: Context,
             completion: *Completion,
             result: RecvError!usize,
@@ -728,23 +728,13 @@ pub const IO = struct {
         );
     }
 
-    pub const ReadError = error{
-        WouldBlock,
-        NotOpenForReading,
-        ConnectionResetByPeer,
-        Alignment,
-        InputOutput,
-        IsDir,
-        SystemResources,
-        Unseekable,
-        ConnectionTimedOut,
-    } || os.UnexpectedError;
+    pub const ReadError = std.os.PReadError || os.UnexpectedError;
 
     pub fn read(
         self: *IO,
         comptime Context: type,
         context: Context,
-        comptime callback: fn (
+        comptime callback: *const fn (
             context: Context,
             completion: *Completion,
             result: ReadError!usize,
@@ -787,7 +777,7 @@ pub const IO = struct {
         self: *IO,
         comptime Context: type,
         context: Context,
-        comptime callback: fn (
+        comptime callback: *const fn (
             context: Context,
             completion: *Completion,
             result: WriteError!usize,
@@ -822,7 +812,7 @@ pub const IO = struct {
         self: *IO,
         comptime Context: type,
         context: Context,
-        comptime callback: fn (
+        comptime callback: *const fn (
             context: Context,
             completion: *Completion,
             result: CloseError!void,
@@ -860,7 +850,7 @@ pub const IO = struct {
         self: *IO,
         comptime Context: type,
         context: Context,
-        comptime callback: fn (
+        comptime callback: *const fn (
             context: Context,
             completion: *Completion,
             result: TimeoutError!void,
@@ -1066,8 +1056,8 @@ pub const IO = struct {
         // NOTE: Requires SeLockMemoryPrivilege.
 
         const kernel32 = struct {
-            const LOCKFILE_EXCLUSIVE_LOCK = 0x2;
-            const LOCKFILE_FAIL_IMMEDIATELY = 01;
+            const LOCKFILE_EXCLUSIVE_LOCK = 0x02;
+            const LOCKFILE_FAIL_IMMEDIATELY = 0x01;
 
             extern "kernel32" fn LockFileEx(
                 hFile: os.windows.HANDLE,
