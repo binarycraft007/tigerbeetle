@@ -89,8 +89,7 @@ const ConfigCluster = struct {
     block_size: comptime_int = 64 * 1024,
     lsm_levels: u7 = 7,
     lsm_growth_factor: u32 = 8,
-    lsm_table_size_max: usize = 64 * 1024 * 1024,
-    lsm_batch_multiple: comptime_int = 4,
+    lsm_batch_multiple: comptime_int = 64,
     lsm_snapshots_max: usize = 32,
     lsm_value_to_key_layout_ratio_min: comptime_int = 16,
 
@@ -187,8 +186,8 @@ pub const configs = struct {
             .storage_size_max = 4 * 1024 * 1024 * 1024,
 
             .block_size = sector_size,
+            .lsm_batch_multiple = 4,
             .lsm_growth_factor = 4,
-            .lsm_table_size_max = 64 * 1024,
         },
     };
 

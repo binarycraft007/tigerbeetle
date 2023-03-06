@@ -237,6 +237,8 @@ pub fn Clock(comptime Time: type) type {
 
         /// Called by `Replica.on_ping_timeout()` to provide `m0` when we decide to send a ping.
         /// Called by `Replica.on_pong()` to provide `m2` when we receive a pong.
+        /// Called by `Replica.on_commit_message_timeout()` to allow backups to discard
+        //  duplicate/misdirected heartbeats.
         pub fn monotonic(self: *Self) u64 {
             return self.time.monotonic();
         }
@@ -393,7 +395,7 @@ pub fn Clock(comptime Time: type) type {
             if (system == cluster) {} else if (system < lower) {
                 const delta = lower - system;
                 if (delta < std.time.ns_per_ms) {
-                    log.info("{}: system time is {} behind", .{
+                    log.debug("{}: system time is {} behind", .{
                         self.replica,
                         fmt.fmtDurationSigned(delta),
                     });
@@ -406,7 +408,7 @@ pub fn Clock(comptime Time: type) type {
             } else {
                 const delta = system - upper;
                 if (delta < std.time.ns_per_ms) {
-                    log.info("{}: system time is {} ahead", .{
+                    log.debug("{}: system time is {} ahead", .{
                         self.replica,
                         fmt.fmtDurationSigned(delta),
                     });

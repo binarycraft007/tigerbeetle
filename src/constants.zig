@@ -27,6 +27,10 @@ pub const hash_log_mode = config.process.hash_log_mode;
 
 /// The maximum number of replicas allowed in a cluster.
 pub const replicas_max = 6;
+/// The maximum number of standbys allowed in a cluster.
+pub const standbys_max = 6;
+/// The maximum number of nodes (either standbys or active replicas) allowed in a cluster.
+pub const nodes_max = replicas_max + standbys_max;
 
 /// The maximum number of clients allowed per cluster, where each client has a unique 128-bit ID.
 /// This impacts the amount of memory allocated at initialization by the server.
@@ -138,7 +142,7 @@ comptime {
 }
 
 /// The maximum number of connections that can be held open by the server at any time:
-pub const connections_max = replicas_max + clients_max;
+pub const connections_max = nodes_max + clients_max;
 
 /// The maximum size of a message in bytes:
 /// This is also the limit of all inflight data across multiple pipelined requests per connection.
@@ -344,8 +348,6 @@ pub const block_size = config.cluster.block_size;
 
 comptime {
     assert(block_size % sector_size == 0);
-    assert(lsm_table_size_max % sector_size == 0);
-    assert(lsm_table_size_max % block_size == 0);
 }
 
 /// The number of levels in an LSM tree.
@@ -366,10 +368,6 @@ comptime {
 /// factor of 8 for lower write amplification rather than the more typical growth factor of 10.
 pub const lsm_growth_factor = config.cluster.lsm_growth_factor;
 
-/// The maximum cumulative size of a table — computed as the sum of the size of the index block,
-/// filter blocks, and data blocks.
-pub const lsm_table_size_max = config.cluster.lsm_table_size_max;
-
 /// Size of nodes used by the LSM tree manifest implementation.
 /// TODO Double-check this with our "LSM Manifest" spreadsheet.
 pub const lsm_manifest_node_size = config.process.lsm_manifest_node_size;
@@ -377,8 +375,6 @@ pub const lsm_manifest_node_size = config.process.lsm_manifest_node_size;
 /// A multiple of batch inserts that a mutable table can definitely accommodate before flushing.
 /// For example, if a message_size_max batch can contain at most 8181 transfers then a multiple of 4
 /// means that the transfer tree's mutable table will be sized to 8191 * 4 = 32764 transfers.
-/// TODO Assert this relative to lsm_table_size_max.
-/// We want to ensure that a mutable table can be converted to an immutable table without overflow.
 pub const lsm_batch_multiple = config.cluster.lsm_batch_multiple;
 
 comptime {

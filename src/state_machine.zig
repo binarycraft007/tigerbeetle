@@ -24,51 +24,13 @@ const CreateTransferResult = tb.CreateTransferResult;
 
 pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
     message_body_size_max: usize,
+    lsm_batch_multiple: usize,
 }) type {
     return struct {
         const StateMachine = @This();
         const Grid = @import("lsm/grid.zig").GridType(Storage);
         const GrooveType = @import("lsm/groove.zig").GrooveType;
         const ForestType = @import("lsm/forest.zig").ForestType;
-
-        const AccountsGroove = GrooveType(
-            Storage,
-            Account,
-            .{
-                .ignored = &[_][]const u8{ "reserved", "flags" },
-                .derived = .{},
-            },
-        );
-        const TransfersGroove = GrooveType(
-            Storage,
-            Transfer,
-            .{
-                .ignored = &[_][]const u8{ "reserved", "flags" },
-                .derived = .{},
-            },
-        );
-        const PostedGroove = @import("lsm/posted_groove.zig").PostedGrooveType(Storage);
-
-        pub const Workload = WorkloadType(StateMachine);
-
-        pub const Forest = ForestType(Storage, .{
-            .accounts = AccountsGroove,
-            .transfers = TransfersGroove,
-            .posted = PostedGroove,
-        });
-
-        pub const Operation = enum(u8) {
-            /// Operations reserved by VR protocol (for all state machines):
-            reserved,
-            root,
-            register,
-
-            /// Operations exported by TigerBeetle:
-            create_accounts,
-            create_transfers,
-            lookup_accounts,
-            lookup_transfers,
-        };
 
         pub const constants = struct {
             pub const message_body_size_max = constants_.message_body_size_max;
@@ -96,6 +58,181 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
             };
         };
 
+        pub const AccountImmutable = extern struct {
+            id: u128,
+            user_data: u128,
+            timestamp: u64,
+            ledger: u32,
+            code: u16,
+            flags: AccountFlags,
+            padding: [16]u8,
+
+            comptime {
+                assert(@sizeOf(AccountImmutable) == 64);
+                assert(@bitSizeOf(AccountImmutable) == @sizeOf(AccountImmutable) * 8);
+            }
+
+            pub fn from_account(a: *const Account) AccountImmutable {
+                return .{
+                    .id = a.id,
+                    .user_data = a.user_data,
+                    .timestamp = a.timestamp,
+                    .ledger = a.ledger,
+                    .code = a.code,
+                    .flags = a.flags,
+                    .padding = mem.zeroes([16]u8),
+                };
+            }
+        };
+
+        pub const AccountMutable = extern struct {
+            debits_pending: u64,
+            debits_posted: u64,
+            credits_pending: u64,
+            credits_posted: u64,
+            timestamp: u64,
+            padding: [24]u8,
+
+            comptime {
+                assert(@sizeOf(AccountMutable) == 64);
+                assert(@bitSizeOf(AccountMutable) == @sizeOf(AccountMutable) * 8);
+            }
+
+            pub fn from_account(a: *const Account) AccountMutable {
+                return .{
+                    .debits_pending = a.debits_pending,
+                    .debits_posted = a.debits_posted,
+                    .credits_pending = a.credits_pending,
+                    .credits_posted = a.credits_posted,
+                    .timestamp = a.timestamp,
+                    .padding = mem.zeroes([24]u8),
+                };
+            }
+        };
+
+        pub fn into_account(immut: *const AccountImmutable, mut: *const AccountMutable) Account {
+            assert(immut.timestamp == mut.timestamp);
+            return Account{
+                .id = immut.id,
+                .user_data = immut.user_data,
+                .reserved = mem.zeroes([48]u8),
+                .ledger = immut.ledger,
+                .code = immut.code,
+                .flags = immut.flags,
+                .debits_pending = mut.debits_pending,
+                .debits_posted = mut.debits_posted,
+                .credits_pending = mut.credits_pending,
+                .credits_posted = mut.credits_posted,
+                .timestamp = mut.timestamp,
+            };
+        }
+
+        const AccountsImmutableGroove = GrooveType(
+            Storage,
+            AccountImmutable,
+            .{
+                .value_count_max = .{
+                    .timestamp = constants_.lsm_batch_multiple * math.max(
+                        constants.batch_max.create_accounts,
+                        // ×2 because creating a transfer will update 2 accounts.
+                        2 * constants.batch_max.create_transfers,
+                    ),
+                    .id = constants_.lsm_batch_multiple * constants.batch_max.create_accounts,
+                    .user_data = constants_.lsm_batch_multiple * constants.batch_max.create_accounts,
+                    .ledger = constants_.lsm_batch_multiple * constants.batch_max.create_accounts,
+                    .code = constants_.lsm_batch_multiple * constants.batch_max.create_accounts,
+                },
+                .ignored = &[_][]const u8{ "flags", "padding" },
+                .derived = .{},
+            },
+        );
+
+        const AccountsMutableGroove = GrooveType(
+            Storage,
+            AccountMutable,
+            .{
+                .value_count_max = .{
+                    .timestamp = constants_.lsm_batch_multiple * math.max(
+                        constants.batch_max.create_accounts,
+                        // ×2 because creating a transfer will update 2 accounts.
+                        2 * constants.batch_max.create_transfers,
+                    ),
+                    // Transfers mutate the secondary indices for debits/credits pending/posted.
+                    //
+                    // * Each mutation results in a remove and an insert: the ×2 multiplier.
+                    // * Each transfer modifies two accounts. However, this does not
+                    //   necessitate an additional ×2 multiplier — the credits of the debit
+                    //   account and the debits of the credit account are not modified.
+                    .debits_pending = constants_.lsm_batch_multiple * math.max(
+                        constants.batch_max.create_accounts,
+                        2 * constants.batch_max.create_transfers,
+                    ),
+                    .debits_posted = constants_.lsm_batch_multiple * math.max(
+                        constants.batch_max.create_accounts,
+                        2 * constants.batch_max.create_transfers,
+                    ),
+                    .credits_pending = constants_.lsm_batch_multiple * math.max(
+                        constants.batch_max.create_accounts,
+                        2 * constants.batch_max.create_transfers,
+                    ),
+                    .credits_posted = constants_.lsm_batch_multiple * math.max(
+                        constants.batch_max.create_accounts,
+                        2 * constants.batch_max.create_transfers,
+                    ),
+                },
+                .ignored = &[_][]const u8{"padding"},
+                .derived = .{},
+            },
+        );
+
+        const TransfersGroove = GrooveType(
+            Storage,
+            Transfer,
+            .{
+                .value_count_max = .{
+                    .timestamp = constants_.lsm_batch_multiple * constants.batch_max.create_transfers,
+                    .id = constants_.lsm_batch_multiple * constants.batch_max.create_transfers,
+                    .debit_account_id = constants_.lsm_batch_multiple * constants.batch_max.create_transfers,
+                    .credit_account_id = constants_.lsm_batch_multiple * constants.batch_max.create_transfers,
+                    .user_data = constants_.lsm_batch_multiple * constants.batch_max.create_transfers,
+                    .pending_id = constants_.lsm_batch_multiple * constants.batch_max.create_transfers,
+                    .timeout = constants_.lsm_batch_multiple * constants.batch_max.create_transfers,
+                    .ledger = constants_.lsm_batch_multiple * constants.batch_max.create_transfers,
+                    .code = constants_.lsm_batch_multiple * constants.batch_max.create_transfers,
+                    .amount = constants_.lsm_batch_multiple * constants.batch_max.create_transfers,
+                },
+                .ignored = &[_][]const u8{ "reserved", "flags" },
+                .derived = .{},
+            },
+        );
+
+        const PostedGroove = @import("lsm/posted_groove.zig").PostedGrooveType(
+            Storage,
+            constants_.lsm_batch_multiple * constants.batch_max.create_transfers,
+        );
+
+        pub const Workload = WorkloadType(StateMachine);
+
+        pub const Forest = ForestType(Storage, .{
+            .accounts_immutable = AccountsImmutableGroove,
+            .accounts_mutable = AccountsMutableGroove,
+            .transfers = TransfersGroove,
+            .posted = PostedGroove,
+        });
+
+        pub const Operation = enum(u8) {
+            /// Operations reserved by VR protocol (for all state machines):
+            reserved,
+            root,
+            register,
+
+            /// Operations exported by TigerBeetle:
+            create_accounts,
+            create_transfers,
+            lookup_accounts,
+            lookup_transfers,
+        };
+
         pub const Options = struct {
             lsm_forest_node_count: u32,
             cache_entries_accounts: u32,
@@ -112,7 +249,8 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
         // TODO(ifreund): use a union for these to save memory, likely an extern union
         // so that we can safetly @ptrCast() until @fieldParentPtr() is implemented
         // for unions. See: https://github.com/ziglang/zig/issues/6611
-        prefetch_accounts_context: AccountsGroove.PrefetchContext = undefined,
+        prefetch_accounts_immutable_context: AccountsImmutableGroove.PrefetchContext = undefined,
+        prefetch_accounts_mutable_context: AccountsMutableGroove.PrefetchContext = undefined,
         prefetch_transfers_context: TransfersGroove.PrefetchContext = undefined,
         prefetch_posted_context: PostedGroove.PrefetchContext = undefined,
 
@@ -225,7 +363,8 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
             self.prefetch_callback = callback;
 
             // TODO(Snapshots) Pass in the target snapshot.
-            self.forest.grooves.accounts.prefetch_setup(null);
+            self.forest.grooves.accounts_immutable.prefetch_setup(null);
+            self.forest.grooves.accounts_mutable.prefetch_setup(null);
             self.forest.grooves.transfers.prefetch_setup(null);
             self.forest.grooves.posted.prefetch_setup(null);
 
@@ -263,16 +402,41 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
 
         fn prefetch_create_accounts(self: *StateMachine, accounts: []const Account) void {
             for (accounts) |*a| {
-                self.forest.grooves.accounts.prefetch_enqueue(a.id);
+                self.forest.grooves.accounts_immutable.prefetch_enqueue(a.id);
             }
-            self.forest.grooves.accounts.prefetch(
-                prefetch_create_accounts_callback,
-                &self.prefetch_accounts_context,
+            self.forest.grooves.accounts_immutable.prefetch(
+                prefetch_create_accounts_immutable_callback,
+                &self.prefetch_accounts_immutable_context,
             );
         }
 
-        fn prefetch_create_accounts_callback(completion: *AccountsGroove.PrefetchContext) void {
-            const self = @fieldParentPtr(StateMachine, "prefetch_accounts_context", completion);
+        fn prefetch_create_accounts_immutable_callback(
+            completion: *AccountsImmutableGroove.PrefetchContext,
+        ) void {
+            const self = @fieldParentPtr(
+                StateMachine,
+                "prefetch_accounts_immutable_context",
+                completion,
+            );
+
+            // Nothing to prefetch_enqueue() from accounts_mutable as accounts_immutable
+            // is all that is needed to check for pre-existing accounts before creating one.
+            // We still call prefetch() anyway to keep a valid/expected Groove state for commit().
+
+            self.forest.grooves.accounts_mutable.prefetch(
+                prefetch_create_accounts_mutable_callback,
+                &self.prefetch_accounts_mutable_context,
+            );
+        }
+
+        fn prefetch_create_accounts_mutable_callback(
+            completion: *AccountsMutableGroove.PrefetchContext,
+        ) void {
+            const self = @fieldParentPtr(
+                StateMachine,
+                "prefetch_accounts_mutable_context",
+                completion,
+            );
 
             self.prefetch_finish();
         }
@@ -302,23 +466,53 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
             for (transfers) |*t| {
                 if (t.flags.post_pending_transfer or t.flags.void_pending_transfer) {
                     if (self.forest.grooves.transfers.get(t.pending_id)) |p| {
-                        self.forest.grooves.accounts.prefetch_enqueue(p.debit_account_id);
-                        self.forest.grooves.accounts.prefetch_enqueue(p.credit_account_id);
+                        self.forest.grooves.accounts_immutable.prefetch_enqueue(p.debit_account_id);
+                        self.forest.grooves.accounts_immutable.prefetch_enqueue(p.credit_account_id);
                     }
                 } else {
-                    self.forest.grooves.accounts.prefetch_enqueue(t.debit_account_id);
-                    self.forest.grooves.accounts.prefetch_enqueue(t.credit_account_id);
+                    self.forest.grooves.accounts_immutable.prefetch_enqueue(t.debit_account_id);
+                    self.forest.grooves.accounts_immutable.prefetch_enqueue(t.credit_account_id);
                 }
             }
 
-            self.forest.grooves.accounts.prefetch(
-                prefetch_create_transfers_callback_accounts,
-                &self.prefetch_accounts_context,
+            self.forest.grooves.accounts_immutable.prefetch(
+                prefetch_create_transfers_callback_accounts_immutable,
+                &self.prefetch_accounts_immutable_context,
             );
         }
 
-        fn prefetch_create_transfers_callback_accounts(completion: *AccountsGroove.PrefetchContext) void {
-            const self = @fieldParentPtr(StateMachine, "prefetch_accounts_context", completion);
+        fn prefetch_create_transfers_callback_accounts_immutable(completion: *AccountsImmutableGroove.PrefetchContext) void {
+            const self = @fieldParentPtr(StateMachine, "prefetch_accounts_immutable_context", completion);
+
+            const transfers = mem.bytesAsSlice(Event(.create_transfers), self.prefetch_input.?);
+            for (transfers) |*t| {
+                if (t.flags.post_pending_transfer or t.flags.void_pending_transfer) {
+                    if (self.forest.grooves.transfers.get(t.pending_id)) |p| {
+                        if (self.forest.grooves.accounts_immutable.get(p.debit_account_id)) |dr_immut| {
+                            self.forest.grooves.accounts_mutable.prefetch_enqueue(dr_immut.timestamp);
+                        }
+                        if (self.forest.grooves.accounts_immutable.get(p.credit_account_id)) |cr_immut| {
+                            self.forest.grooves.accounts_mutable.prefetch_enqueue(cr_immut.timestamp);
+                        }
+                    }
+                } else {
+                    if (self.forest.grooves.accounts_immutable.get(t.debit_account_id)) |dr_immut| {
+                        self.forest.grooves.accounts_mutable.prefetch_enqueue(dr_immut.timestamp);
+                    }
+                    if (self.forest.grooves.accounts_immutable.get(t.credit_account_id)) |cr_immut| {
+                        self.forest.grooves.accounts_mutable.prefetch_enqueue(cr_immut.timestamp);
+                    }
+                }
+            }
+
+            self.forest.grooves.accounts_mutable.prefetch(
+                prefetch_create_transfers_callback_accounts_mutable,
+                &self.prefetch_accounts_mutable_context,
+            );
+        }
+
+        fn prefetch_create_transfers_callback_accounts_mutable(completion: *AccountsMutableGroove.PrefetchContext) void {
+            const self = @fieldParentPtr(StateMachine, "prefetch_accounts_mutable_context", completion);
 
             self.forest.grooves.posted.prefetch(
                 prefetch_create_transfers_callback_posted,
@@ -334,17 +528,33 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
 
         fn prefetch_lookup_accounts(self: *StateMachine, ids: []const u128) void {
             for (ids) |id| {
-                self.forest.grooves.accounts.prefetch_enqueue(id);
+                self.forest.grooves.accounts_immutable.prefetch_enqueue(id);
             }
 
-            self.forest.grooves.accounts.prefetch(
-                prefetch_lookup_accounts_callback,
-                &self.prefetch_accounts_context,
+            self.forest.grooves.accounts_immutable.prefetch(
+                prefetch_lookup_accounts_immutable_callback,
+                &self.prefetch_accounts_immutable_context,
             );
         }
 
-        fn prefetch_lookup_accounts_callback(completion: *AccountsGroove.PrefetchContext) void {
-            const self = @fieldParentPtr(StateMachine, "prefetch_accounts_context", completion);
+        fn prefetch_lookup_accounts_immutable_callback(completion: *AccountsImmutableGroove.PrefetchContext) void {
+            const self = @fieldParentPtr(StateMachine, "prefetch_accounts_immutable_context", completion);
+
+            const ids = mem.bytesAsSlice(Event(.lookup_accounts), self.prefetch_input.?);
+            for (ids) |id| {
+                if (self.forest.grooves.accounts_immutable.get(id)) |immut| {
+                    self.forest.grooves.accounts_mutable.prefetch_enqueue(immut.timestamp);
+                }
+            }
+
+            self.forest.grooves.accounts_mutable.prefetch(
+                prefetch_lookup_accounts_mutable_callback,
+                &self.prefetch_accounts_mutable_context,
+            );
+        }
+
+        fn prefetch_lookup_accounts_mutable_callback(completion: *AccountsMutableGroove.PrefetchContext) void {
+            const self = @fieldParentPtr(StateMachine, "prefetch_accounts_mutable_context", completion);
 
             self.prefetch_finish();
         }
@@ -577,8 +787,9 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
             const results = mem.bytesAsSlice(Account, output[0..output_len]);
             var results_count: usize = 0;
             for (batch) |id| {
-                if (self.get_account(id)) |result| {
-                    results[results_count] = result.*;
+                if (self.forest.grooves.accounts_immutable.get(id)) |immut| {
+                    const mut = self.forest.grooves.accounts_mutable.get(immut.timestamp).?;
+                    results[results_count] = into_account(immut, mut);
                     results_count += 1;
                 }
             }
@@ -624,23 +835,30 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
             if (a.credits_pending != 0) return .credits_pending_must_be_zero;
             if (a.credits_posted != 0) return .credits_posted_must_be_zero;
 
-            if (self.get_account(a.id)) |e| return create_account_exists(a, e);
+            if (self.forest.grooves.accounts_immutable.get(a.id)) |e| {
+                return create_account_exists(a, e);
+            }
 
-            self.forest.grooves.accounts.put_no_clobber(a);
+            self.forest.grooves.accounts_immutable.put_no_clobber(&AccountImmutable.from_account(a));
+            self.forest.grooves.accounts_mutable.put_no_clobber(&AccountMutable.from_account(a));
 
             self.commit_timestamp = a.timestamp;
             return .ok;
         }
 
         fn create_account_rollback(self: *StateMachine, a: *const Account) void {
-            self.forest.grooves.accounts.remove(a.id);
+            // Need to get the timestamp from the inserted account rather than the one passed in.
+            const timestamp = self.forest.grooves.accounts_immutable.get(a.id).?.timestamp;
+
+            self.forest.grooves.accounts_immutable.remove(a.id);
+            self.forest.grooves.accounts_mutable.remove(timestamp);
         }
 
-        fn create_account_exists(a: *const Account, e: *const Account) CreateAccountResult {
+        fn create_account_exists(a: *const Account, e: *const AccountImmutable) CreateAccountResult {
             assert(a.id == e.id);
             if (@bitCast(u16, a.flags) != @bitCast(u16, e.flags)) return .exists_with_different_flags;
             if (a.user_data != e.user_data) return .exists_with_different_user_data;
-            assert(zeroed_48_bytes(a.reserved) and zeroed_48_bytes(e.reserved));
+            assert(zeroed_48_bytes(a.reserved) and zeroed_16_bytes(e.padding));
             if (a.ledger != e.ledger) return .exists_with_different_ledger;
             if (a.code != e.code) return .exists_with_different_code;
             return .exists;
@@ -679,50 +897,55 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
             // 2. standing for debit record and credit record, or
             // 3. relating to debtor and creditor.
             // We use them to distinguish between `cr` (credit account), and `c` (commit).
-            const dr = self.get_account(t.debit_account_id) orelse return .debit_account_not_found;
-            const cr = self.get_account(t.credit_account_id) orelse return .credit_account_not_found;
-            assert(dr.id == t.debit_account_id);
-            assert(cr.id == t.credit_account_id);
-            assert(t.timestamp > dr.timestamp);
-            assert(t.timestamp > cr.timestamp);
+            const dr_immut = self.forest.grooves.accounts_immutable.get(t.debit_account_id) orelse return .debit_account_not_found;
+            const cr_immut = self.forest.grooves.accounts_immutable.get(t.credit_account_id) orelse return .credit_account_not_found;
+            assert(dr_immut.id == t.debit_account_id);
+            assert(cr_immut.id == t.credit_account_id);
+            assert(t.timestamp > dr_immut.timestamp);
+            assert(t.timestamp > cr_immut.timestamp);
 
-            if (dr.ledger != cr.ledger) return .accounts_must_have_the_same_ledger;
-            if (t.ledger != dr.ledger) return .transfer_must_have_the_same_ledger_as_accounts;
+            if (dr_immut.ledger != cr_immut.ledger) return .accounts_must_have_the_same_ledger;
+            if (t.ledger != dr_immut.ledger) return .transfer_must_have_the_same_ledger_as_accounts;
 
             // If the transfer already exists, then it must not influence the overflow or limit checks.
             if (self.get_transfer(t.id)) |e| return create_transfer_exists(t, e);
 
+            const dr_mut = self.forest.grooves.accounts_mutable.get(dr_immut.timestamp).?;
+            const cr_mut = self.forest.grooves.accounts_mutable.get(cr_immut.timestamp).?;
+            assert(dr_mut.timestamp == dr_immut.timestamp);
+            assert(cr_mut.timestamp == cr_immut.timestamp);
+
             if (t.flags.pending) {
-                if (sum_overflows(t.amount, dr.debits_pending)) return .overflows_debits_pending;
-                if (sum_overflows(t.amount, cr.credits_pending)) return .overflows_credits_pending;
+                if (sum_overflows(t.amount, dr_mut.debits_pending)) return .overflows_debits_pending;
+                if (sum_overflows(t.amount, cr_mut.credits_pending)) return .overflows_credits_pending;
             }
-            if (sum_overflows(t.amount, dr.debits_posted)) return .overflows_debits_posted;
-            if (sum_overflows(t.amount, cr.credits_posted)) return .overflows_credits_posted;
+            if (sum_overflows(t.amount, dr_mut.debits_posted)) return .overflows_debits_posted;
+            if (sum_overflows(t.amount, cr_mut.credits_posted)) return .overflows_credits_posted;
             // We assert that the sum of the pending and posted balances can never overflow:
-            if (sum_overflows(t.amount, dr.debits_pending + dr.debits_posted)) {
+            if (sum_overflows(t.amount, dr_mut.debits_pending + dr_mut.debits_posted)) {
                 return .overflows_debits;
             }
-            if (sum_overflows(t.amount, cr.credits_pending + cr.credits_posted)) {
+            if (sum_overflows(t.amount, cr_mut.credits_pending + cr_mut.credits_posted)) {
                 return .overflows_credits;
             }
             if (sum_overflows(t.timestamp, t.timeout)) return .overflows_timeout;
 
-            if (dr.debits_exceed_credits(t.amount)) return .exceeds_credits;
-            if (cr.credits_exceed_debits(t.amount)) return .exceeds_debits;
+            if (into_account(dr_immut, dr_mut).debits_exceed_credits(t.amount)) return .exceeds_credits;
+            if (into_account(cr_immut, cr_mut).credits_exceed_debits(t.amount)) return .exceeds_debits;
 
             self.forest.grooves.transfers.put_no_clobber(t);
 
-            var dr_new = dr.*;
-            var cr_new = cr.*;
+            var dr_mut_new = dr_mut.*;
+            var cr_mut_new = cr_mut.*;
             if (t.flags.pending) {
-                dr_new.debits_pending += t.amount;
-                cr_new.credits_pending += t.amount;
+                dr_mut_new.debits_pending += t.amount;
+                cr_mut_new.credits_pending += t.amount;
             } else {
-                dr_new.debits_posted += t.amount;
-                cr_new.credits_posted += t.amount;
+                dr_mut_new.debits_posted += t.amount;
+                cr_mut_new.credits_posted += t.amount;
             }
-            self.forest.grooves.accounts.put(&dr_new);
-            self.forest.grooves.accounts.put(&cr_new);
+            self.forest.grooves.accounts_mutable.put(&dr_mut_new);
+            self.forest.grooves.accounts_mutable.put(&cr_mut_new);
 
             self.commit_timestamp = t.timestamp;
             return .ok;
@@ -733,20 +956,25 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
                 return self.post_or_void_pending_transfer_rollback(t);
             }
 
-            var dr = self.get_account(t.debit_account_id).?.*;
-            var cr = self.get_account(t.credit_account_id).?.*;
-            assert(dr.id == t.debit_account_id);
-            assert(cr.id == t.credit_account_id);
+            const dr_immut = self.forest.grooves.accounts_immutable.get(t.debit_account_id).?;
+            const cr_immut = self.forest.grooves.accounts_immutable.get(t.credit_account_id).?;
+            assert(dr_immut.id == t.debit_account_id);
+            assert(cr_immut.id == t.credit_account_id);
+
+            var dr_mut = self.forest.grooves.accounts_mutable.get(dr_immut.timestamp).?.*;
+            var cr_mut = self.forest.grooves.accounts_mutable.get(cr_immut.timestamp).?.*;
+            assert(dr_mut.timestamp == dr_immut.timestamp);
+            assert(cr_mut.timestamp == cr_immut.timestamp);
 
             if (t.flags.pending) {
-                dr.debits_pending -= t.amount;
-                cr.credits_pending -= t.amount;
+                dr_mut.debits_pending -= t.amount;
+                cr_mut.credits_pending -= t.amount;
             } else {
-                dr.debits_posted -= t.amount;
-                cr.credits_posted -= t.amount;
+                dr_mut.debits_posted -= t.amount;
+                cr_mut.credits_posted -= t.amount;
             }
-            self.forest.grooves.accounts.put(&dr);
-            self.forest.grooves.accounts.put(&cr);
+            self.forest.grooves.accounts_mutable.put(&dr_mut);
+            self.forest.grooves.accounts_mutable.put(&cr_mut);
 
             self.forest.grooves.transfers.remove(t.id);
         }
@@ -792,12 +1020,12 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
             assert(p.id == t.pending_id);
             if (!p.flags.pending) return .pending_transfer_not_pending;
 
-            const dr = self.get_account(p.debit_account_id).?;
-            const cr = self.get_account(p.credit_account_id).?;
-            assert(dr.id == p.debit_account_id);
-            assert(cr.id == p.credit_account_id);
-            assert(p.timestamp > dr.timestamp);
-            assert(p.timestamp > cr.timestamp);
+            const dr_immut = self.forest.grooves.accounts_immutable.get(p.debit_account_id).?;
+            const cr_immut = self.forest.grooves.accounts_immutable.get(p.credit_account_id).?;
+            assert(dr_immut.id == p.debit_account_id);
+            assert(cr_immut.id == p.credit_account_id);
+            assert(p.timestamp > dr_immut.timestamp);
+            assert(p.timestamp > cr_immut.timestamp);
             assert(p.amount > 0);
 
             if (t.debit_account_id > 0 and t.debit_account_id != p.debit_account_id) {
@@ -846,21 +1074,23 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
 
             self.forest.grooves.posted.put_no_clobber(t.pending_id, t.flags.post_pending_transfer);
 
-            var dr_new = dr.*;
-            var cr_new = cr.*;
+            var dr_mut_new = self.forest.grooves.accounts_mutable.get(dr_immut.timestamp).?.*;
+            var cr_mut_new = self.forest.grooves.accounts_mutable.get(cr_immut.timestamp).?.*;
+            assert(dr_mut_new.timestamp == dr_immut.timestamp);
+            assert(cr_mut_new.timestamp == cr_immut.timestamp);
 
-            dr_new.debits_pending -= p.amount;
-            cr_new.credits_pending -= p.amount;
+            dr_mut_new.debits_pending -= p.amount;
+            cr_mut_new.credits_pending -= p.amount;
 
             if (t.flags.post_pending_transfer) {
                 assert(amount > 0);
                 assert(amount <= p.amount);
-                dr_new.debits_posted += amount;
-                cr_new.credits_posted += amount;
+                dr_mut_new.debits_posted += amount;
+                cr_mut_new.credits_posted += amount;
             }
 
-            self.forest.grooves.accounts.put(&dr_new);
-            self.forest.grooves.accounts.put(&cr_new);
+            self.forest.grooves.accounts_mutable.put(&dr_mut_new);
+            self.forest.grooves.accounts_mutable.put(&cr_mut_new);
 
             self.commit_timestamp = t.timestamp;
             return .ok;
@@ -876,23 +1106,28 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
             assert(p.debit_account_id > 0);
             assert(p.credit_account_id > 0);
 
-            var dr = self.get_account(p.debit_account_id).?.*;
-            var cr = self.get_account(p.credit_account_id).?.*;
-            assert(dr.id == p.debit_account_id);
-            assert(cr.id == p.credit_account_id);
+            const dr_immut = self.forest.grooves.accounts_immutable.get(p.debit_account_id).?;
+            const cr_immut = self.forest.grooves.accounts_immutable.get(p.credit_account_id).?;
+            assert(dr_immut.id == p.debit_account_id);
+            assert(cr_immut.id == p.credit_account_id);
+
+            var dr_mut = self.forest.grooves.accounts_mutable.get(dr_immut.timestamp).?.*;
+            var cr_mut = self.forest.grooves.accounts_mutable.get(cr_immut.timestamp).?.*;
+            assert(dr_mut.timestamp == dr_immut.timestamp);
+            assert(cr_mut.timestamp == cr_immut.timestamp);
 
             if (t.flags.post_pending_transfer) {
                 const amount = if (t.amount > 0) t.amount else p.amount;
                 assert(amount > 0);
                 assert(amount <= p.amount);
-                dr.debits_posted -= amount;
-                cr.credits_posted -= amount;
+                dr_mut.debits_posted -= amount;
+                cr_mut.credits_posted -= amount;
             }
-            dr.debits_pending += p.amount;
-            cr.credits_pending += p.amount;
+            dr_mut.debits_pending += p.amount;
+            cr_mut.credits_pending += p.amount;
 
-            self.forest.grooves.accounts.put(&dr);
-            self.forest.grooves.accounts.put(&cr);
+            self.forest.grooves.accounts_mutable.put(&dr_mut);
+            self.forest.grooves.accounts_mutable.put(&cr_mut);
 
             self.forest.grooves.posted.remove(t.pending_id);
             self.forest.grooves.transfers.remove(t.id);
@@ -951,10 +1186,6 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
             return .exists;
         }
 
-        fn get_account(self: *const StateMachine, id: u128) ?*const Account {
-            return self.forest.grooves.accounts.get(id);
-        }
-
         fn get_transfer(self: *const StateMachine, id: u128) ?*const Transfer {
             return self.forest.grooves.transfers.get(id);
         }
@@ -971,60 +1202,43 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
             assert(batch_transfers_max == constants.batch_max.lookup_transfers);
 
             return .{
-                .accounts = .{
+                .accounts_immutable = .{
                     .prefetch_entries_max = std.math.max(
-                        // create_account()/lookup_account() looks up 1 account per item.
+                        // create_account()/lookup_account() looks up 1 AccountImmutable per item.
                         batch_accounts_max,
                         // create_transfer()/post_or_void_pending_transfer() looks up 2
-                        // accounts for every transfer.
+                        // AccountImmutables for every transfer.
                         2 * batch_transfers_max,
                     ),
                     .tree_options_object = .{
                         .cache_entries_max = options.cache_entries_accounts,
-                        .commit_entries_max = math.max(
-                            batch_accounts_max,
-                            // ×2 because creating a transfer will update 2 accounts.
-                            2 * batch_transfers_max,
-                        ),
                     },
                     .tree_options_id = .{
                         .cache_entries_max = options.cache_entries_accounts,
-                        .commit_entries_max = batch_accounts_max,
                     },
                     .tree_options_index = .{
-                        .user_data = .{ .commit_entries_max = batch_accounts_max },
-                        .ledger = .{ .commit_entries_max = batch_accounts_max },
-                        .code = .{ .commit_entries_max = batch_accounts_max },
-                        // Transfers mutate the secondary indices for debits/credits pending/posted.
-                        //
-                        // * Each mutation results in a remove and an insert: the ×2 multiplier.
-                        // * Each transfer modifies two accounts. However, this does not
-                        //   necessitate an additional ×2 multiplier — the credits of the debit
-                        //   account and the debits of the credit account are not modified.
-                        .debits_pending = .{
-                            .commit_entries_max = math.max(
-                                batch_accounts_max,
-                                2 * batch_transfers_max,
-                            ),
-                        },
-                        .debits_posted = .{
-                            .commit_entries_max = math.max(
-                                batch_accounts_max,
-                                2 * batch_transfers_max,
-                            ),
-                        },
-                        .credits_pending = .{
-                            .commit_entries_max = math.max(
-                                batch_accounts_max,
-                                2 * batch_transfers_max,
-                            ),
-                        },
-                        .credits_posted = .{
-                            .commit_entries_max = math.max(
-                                batch_accounts_max,
-                                2 * batch_transfers_max,
-                            ),
-                        },
+                        .user_data = .{},
+                        .ledger = .{},
+                        .code = .{},
+                    },
+                },
+                .accounts_mutable = .{
+                    .prefetch_entries_max = std.math.max(
+                        // create_account()/lookup_account() looks up 1 AccountMutable per item.
+                        batch_accounts_max,
+                        // create_transfer()/post_or_void_pending_transfer() looks up 2
+                        // AccountMutables for every transfer.
+                        2 * batch_transfers_max,
+                    ),
+                    .tree_options_object = .{
+                        .cache_entries_max = options.cache_entries_accounts,
+                    },
+                    .tree_options_id = {}, // No ID tree at there's one already for AccountsMutable.
+                    .tree_options_index = .{
+                        .debits_pending = .{},
+                        .debits_posted = .{},
+                        .credits_pending = .{},
+                        .credits_posted = .{},
                     },
                 },
                 .transfers = .{
@@ -1032,27 +1246,24 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
                     .prefetch_entries_max = 2 * batch_transfers_max,
                     .tree_options_object = .{
                         .cache_entries_max = options.cache_entries_transfers,
-                        .commit_entries_max = batch_transfers_max,
                     },
                     .tree_options_id = .{
                         .cache_entries_max = options.cache_entries_transfers,
-                        .commit_entries_max = batch_transfers_max,
                     },
                     .tree_options_index = .{
-                        .debit_account_id = .{ .commit_entries_max = batch_transfers_max },
-                        .credit_account_id = .{ .commit_entries_max = batch_transfers_max },
-                        .user_data = .{ .commit_entries_max = batch_transfers_max },
-                        .pending_id = .{ .commit_entries_max = batch_transfers_max },
-                        .timeout = .{ .commit_entries_max = batch_transfers_max },
-                        .ledger = .{ .commit_entries_max = batch_transfers_max },
-                        .code = .{ .commit_entries_max = batch_transfers_max },
-                        .amount = .{ .commit_entries_max = batch_transfers_max },
+                        .debit_account_id = .{},
+                        .credit_account_id = .{},
+                        .user_data = .{},
+                        .pending_id = .{},
+                        .timeout = .{},
+                        .ledger = .{},
+                        .code = .{},
+                        .amount = .{},
                     },
                 },
                 .posted = .{
                     .cache_entries_max = options.cache_entries_posted,
                     .prefetch_entries_max = batch_transfers_max,
-                    .commit_entries_max = batch_transfers_max,
                 },
             };
         }
@@ -1065,6 +1276,11 @@ fn sum_overflows(a: u64, b: u64) bool {
 }
 
 /// Optimizes for the common case, where the array is zeroed. Completely branchless.
+fn zeroed_16_bytes(a: [16]u8) bool {
+    const x = @bitCast([2]u64, a);
+    return (x[0] | x[1]) == 0;
+}
+
 fn zeroed_32_bytes(a: [32]u8) bool {
     const x = @bitCast([4]u64, a);
     return (x[0] | x[1] | x[2] | x[3]) == 0;
@@ -1121,9 +1337,9 @@ const TestContext = struct {
     const SuperBlock = @import("vsr/superblock.zig").SuperBlockType(Storage);
     const Grid = @import("lsm/grid.zig").GridType(Storage);
     const StateMachine = StateMachineType(Storage, .{
-        // Overestimate the batch size (in order to overprovision commit_entries_max)
-        // because the test never compacts.
+        // Overestimate the batch size because the test never compacts.
         .message_body_size_max = message_body_size_max,
+        .lsm_batch_multiple = 1,
     });
     const message_body_size_max = 32 * @sizeOf(Account);
 
@@ -1328,12 +1544,13 @@ fn check(comptime test_table: []const u8) !void {
             .setup => |b| {
                 assert(operation == null);
 
-                var account = context.state_machine.get_account(b.account).?.*;
-                account.debits_pending = b.debits_pending;
-                account.debits_posted = b.debits_posted;
-                account.credits_pending = b.credits_pending;
-                account.credits_posted = b.credits_posted;
-                context.state_machine.forest.grooves.accounts.put(&account);
+                const immut = context.state_machine.forest.grooves.accounts_immutable.get(b.account).?;
+                var mut = context.state_machine.forest.grooves.accounts_mutable.get(immut.timestamp).?.*;
+                mut.debits_pending = b.debits_pending;
+                mut.debits_posted = b.debits_posted;
+                mut.credits_pending = b.credits_pending;
+                mut.credits_posted = b.credits_posted;
+                context.state_machine.forest.grooves.accounts_mutable.put(&mut);
             },
 
             .account => |a| {
@@ -1875,6 +2092,7 @@ test "StateMachine: ref all decls" {
     const Storage = @import("storage.zig").Storage;
     const StateMachine = StateMachineType(Storage, .{
         .message_body_size_max = 1000 * @sizeOf(Account),
+        .lsm_batch_multiple = 1,
     });
 
     std.testing.refAllDecls(StateMachine);

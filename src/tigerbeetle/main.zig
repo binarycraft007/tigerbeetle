@@ -24,6 +24,7 @@ const MessageBus = vsr.message_bus.MessageBusReplica;
 const MessagePool = vsr.message_pool.MessagePool;
 const StateMachine = vsr.state_machine.StateMachineType(Storage, .{
     .message_body_size_max = constants.message_body_size_max,
+    .lsm_batch_multiple = constants.lsm_batch_multiple,
 });
 
 const Replica = vsr.ReplicaType(StateMachine, MessageBus, Storage, Time);
@@ -139,7 +140,8 @@ const Command = struct {
 
         var replica: Replica = undefined;
         replica.open(allocator, .{
-            .replica_count = @intCast(u8, args.addresses.len),
+            .replica_count = @intCast(u8, args.addresses.len) - args.standby_count,
+            .standby_count = args.standby_count,
             .storage_size_limit = args.storage_size_limit,
             .storage = &command.storage,
             .message_pool = &command.message_pool,

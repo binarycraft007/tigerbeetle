@@ -20,6 +20,7 @@ const Replica = @import("testing/cluster.zig").Replica;
 const StateMachine = Cluster.StateMachine;
 const Failure = @import("testing/cluster.zig").Failure;
 const PartitionMode = @import("testing/packet_simulator.zig").PartitionMode;
+const PartitionSymmetry = @import("testing/packet_simulator.zig").PartitionSymmetry;
 const ReplySequence = @import("testing/reply_sequence.zig").ReplySequence;
 const IdPermutation = @import("testing/id.zig").IdPermutation;
 const Message = @import("message_pool.zig").MessagePool.Message;
@@ -78,18 +79,21 @@ pub fn main() !void {
     const random = prng.random();
 
     const replica_count = 1 + random.uintLessThan(u8, constants.replicas_max);
+    const standby_count = random.uintAtMost(u8, constants.standbys_max);
+    const node_count = replica_count + standby_count;
     const client_count = 1 + random.uintLessThan(u8, constants.clients_max);
 
     const cluster_options = Cluster.Options{
         .cluster_id = cluster_id,
         .replica_count = replica_count,
+        .standby_count = standby_count,
         .client_count = client_count,
         .storage_size_limit = vsr.sector_floor(
             constants.storage_size_max - random.uintLessThan(u64, constants.storage_size_max / 10),
         ),
         .seed = random.int(u64),
         .network = .{
-            .replica_count = replica_count,
+            .node_count = node_count,
             .client_count = client_count,
 
             .seed = random.int(u64),
@@ -102,6 +106,7 @@ pub fn main() !void {
             .packet_replay_probability = random.uintLessThan(u8, 50),
 
             .partition_mode = random_partition_mode(random),
+            .partition_symmetry = random_partition_symmetry(random),
             .partition_probability = random.uintLessThan(u8, 3),
             .unpartition_probability = 1 + random.uintLessThan(u8, 10),
             .partition_stability = 100 + random.uintLessThan(u32, 100),
@@ -143,9 +148,10 @@ pub fn main() !void {
     const simulator_options = Simulator.Options{
         .cluster = cluster_options,
         .workload = workload_options,
+        // TODO Swarm testing: Test long+few crashes and short+many crashes separately.
         .replica_crash_probability = 0.00002,
         .replica_crash_stability = random.uintLessThan(u32, 1_000),
-        .replica_restart_probability = 0.0001,
+        .replica_restart_probability = 0.0002,
         .replica_restart_stability = random.uintLessThan(u32, 1_000),
         .requests_max = constants.journal_slot_count * 3,
         .request_probability = 1 + random.uintLessThan(u8, 99),
@@ -158,6 +164,7 @@ pub fn main() !void {
         \\          SEED={}
         \\
         \\          replicas={}
+        \\          standbys={}
         \\          clients={}
         \\          request_probability={}%
         \\          idle_on_probability={}%
@@ -170,6 +177,7 @@ pub fn main() !void {
         \\          path_clog_probability={}%
         \\          packet_replay_probability={}%
         \\          partition_mode={}
+        \\          partition_symmetry={}
         \\          partition_probability={}%
         \\          unpartition_probability={}%
         \\          partition_stability={} ticks
@@ -187,6 +195,7 @@ pub fn main() !void {
     , .{
         seed,
         cluster_options.replica_count,
+        cluster_options.standby_count,
         cluster_options.client_count,
         simulator_options.request_probability,
         simulator_options.request_idle_on_probability,
@@ -199,6 +208,7 @@ pub fn main() !void {
         cluster_options.network.path_clog_probability,
         cluster_options.network.packet_replay_probability,
         cluster_options.network.partition_mode,
+        cluster_options.network.partition_symmetry,
         cluster_options.network.partition_probability,
         cluster_options.network.unpartition_probability,
         cluster_options.network.partition_stability,
@@ -268,9 +278,9 @@ pub const Simulator = struct {
     requests_idle: bool = false,
 
     pub fn init(allocator: std.mem.Allocator, random: std.rand.Random, options: Options) !Simulator {
-        assert(options.replica_crash_probability < 1.0);
+        assert(options.replica_crash_probability < 100.0);
         assert(options.replica_crash_probability >= 0.0);
-        assert(options.replica_restart_probability < 1.0);
+        assert(options.replica_restart_probability < 100.0);
         assert(options.replica_restart_probability >= 0.0);
         assert(options.requests_max > 0);
         assert(options.request_probability > 0);
@@ -285,7 +295,7 @@ pub const Simulator = struct {
         var workload = try StateMachine.Workload.init(allocator, random, options.workload);
         errdefer workload.deinit(allocator);
 
-        var replica_stability = try allocator.alloc(usize, options.cluster.replica_count);
+        var replica_stability = try allocator.alloc(usize, options.cluster.replica_count + options.cluster.standby_count);
         errdefer allocator.free(replica_stability);
         std.mem.set(usize, replica_stability, 0);
 
@@ -534,6 +544,12 @@ fn random_partition_mode(random: std.rand.Random) PartitionMode {
     const typeInfo = @typeInfo(PartitionMode).Enum;
     var enumAsInt = random.uintAtMost(typeInfo.tag_type, typeInfo.fields.len - 1);
     return @intToEnum(PartitionMode, enumAsInt);
+}
+
+fn random_partition_symmetry(random: std.rand.Random) PartitionSymmetry {
+    const typeInfo = @typeInfo(PartitionSymmetry).Enum;
+    var enumAsInt = random.uintAtMost(typeInfo.tag_type, typeInfo.fields.len - 1);
+    return @intToEnum(PartitionSymmetry, enumAsInt);
 }
 
 pub fn parse_seed(bytes: []const u8) u64 {
