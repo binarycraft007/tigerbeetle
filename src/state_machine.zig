@@ -353,9 +353,7 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
 
             tracer.start(
                 &self.tracer_slot,
-                .main,
                 .state_machine_prefetch,
-
                 @src(),
             );
 
@@ -393,7 +391,6 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
 
             tracer.end(
                 &self.tracer_slot,
-                .main,
                 .state_machine_prefetch,
             );
 
@@ -591,7 +588,6 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
 
             tracer.start(
                 &self.tracer_slot,
-                .main,
                 .state_machine_commit,
                 @src(),
             );
@@ -608,7 +604,6 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
 
             tracer.end(
                 &self.tracer_slot,
-                .main,
                 .state_machine_commit,
             );
 
@@ -621,7 +616,6 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
 
             tracer.start(
                 &self.tracer_slot,
-                .main,
                 .state_machine_compact,
                 @src(),
             );
@@ -637,7 +631,6 @@ pub fn StateMachineType(comptime Storage: type, comptime constants_: struct {
 
             tracer.end(
                 &self.tracer_slot,
-                .main,
                 .state_machine_compact,
             );
 

@@ -26,13 +26,11 @@ if [ ! -d "zig" ]; then
     scripts/install_zig.sh
 fi
 
-
+# shellcheck disable=SC2086
 if [ "$debug" = "true" ]; then
     echo "Building Tigerbeetle debug..."
-    # shellcheck disable=SC2086
-    zig/zig build install -Dcpu=baseline ${target}
+    ./scripts/build.sh install -Dcpu=baseline $target
 else
     echo "Building TigerBeetle..."
-    # shellcheck disable=SC2086
-    zig/zig build install -Dcpu=baseline -Drelease-safe ${target}
+    ./scripts/build.sh install -Dcpu=baseline -Drelease-safe $target
 fi

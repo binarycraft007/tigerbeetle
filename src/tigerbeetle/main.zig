@@ -42,11 +42,18 @@ pub fn main() !void {
 
     const allocator = arena.allocator();
 
+    try tracer.init(allocator);
+    defer tracer.deinit(allocator);
+
     var parse_args = try cli.parse_args(allocator);
     defer parse_args.deinit(allocator);
 
     switch (parse_args) {
-        .format => |*args| try Command.format(allocator, args.cluster, args.replica, args.path),
+        .format => |*args| try Command.format(allocator, .{
+            .cluster = args.cluster,
+            .replica = args.replica,
+            .replica_count = args.replica_count,
+        }, args.path),
         .start => |*args| try Command.start(&arena, args),
         .version => |*args| try Command.version(allocator, args.verbose),
     }
@@ -97,7 +104,7 @@ const Command = struct {
         os.close(command.dir_fd);
     }
 
-    pub fn format(allocator: mem.Allocator, cluster: u32, replica: u8, path: [:0]const u8) !void {
+    pub fn format(allocator: mem.Allocator, options: SuperBlock.FormatOptions, path: [:0]const u8) !void {
         var command: Command = undefined;
         try command.init(allocator, path, true);
         defer command.deinit(allocator);
@@ -112,27 +119,25 @@ const Command = struct {
         );
         defer superblock.deinit(allocator);
 
-        try vsr.format(Storage, allocator, cluster, replica, &command.storage, &superblock);
+        try vsr.format(Storage, allocator, options, &command.storage, &superblock);
 
-        log_main.info("{}: formatted: cluster={}", .{
-            replica,
-            cluster,
+        log_main.info("{}: formatted: cluster={} replica_count={}", .{
+            options.replica,
+            options.cluster,
+            options.replica_count,
         });
     }
 
     pub fn start(arena: *std.heap.ArenaAllocator, args: *const cli.Command.Start) !void {
-        var tracer_allocator = if (constants.tracer_backend == .tracy)
-            tracer.TracerAllocator.init(arena.allocator())
+        var traced_allocator = if (constants.tracer_backend == .tracy)
+            tracer.TracedAllocator.init(arena.allocator())
         else
             arena;
 
         // TODO Panic if the data file's size is larger that args.storage_size_limit.
         // (Here or in Replica.open()?).
 
-        const allocator = tracer_allocator.allocator();
-
-        try tracer.init(allocator);
-        defer tracer.deinit(allocator);
+        const allocator = traced_allocator.allocator();
 
         var command: Command = undefined;
         try command.init(allocator, args.path, false);
@@ -140,8 +145,7 @@ const Command = struct {
 
         var replica: Replica = undefined;
         replica.open(allocator, .{
-            .replica_count = @intCast(u8, args.addresses.len) - args.standby_count,
-            .standby_count = args.standby_count,
+            .node_count = @intCast(u8, args.addresses.len),
             .storage_size_limit = args.storage_size_limit,
             .storage = &command.storage,
             .message_pool = &command.message_pool,

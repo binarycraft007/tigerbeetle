@@ -219,9 +219,9 @@ pub fn main() !void {
         cluster_options.storage.write_latency_mean,
         cluster_options.storage.read_fault_probability,
         cluster_options.storage.write_fault_probability,
-        simulator_options.replica_crash_probability * 100,
+        simulator_options.replica_crash_probability,
         simulator_options.replica_crash_stability,
-        simulator_options.replica_restart_probability * 100,
+        simulator_options.replica_restart_probability,
         simulator_options.replica_restart_stability,
     });
 
@@ -322,13 +322,13 @@ pub const Simulator = struct {
     pub fn done(simulator: *Simulator) bool {
         assert(simulator.requests_sent <= simulator.options.requests_max);
 
-        if (!simulator.cluster.state_checker.convergence()) return false;
-        if (!simulator.reply_sequence.empty()) return false;
-        if (simulator.requests_sent < simulator.options.requests_max) return false;
-
         for (simulator.cluster.replica_health) |health| {
             if (health == .down) return false;
         }
+
+        if (!simulator.cluster.state_checker.convergence()) return false;
+        if (!simulator.reply_sequence.empty()) return false;
+        if (simulator.requests_sent < simulator.options.requests_max) return false;
 
         for (simulator.cluster.clients) |*client| {
             if (client.request_queue.count > 0) return false;
@@ -458,7 +458,8 @@ pub const Simulator = struct {
             vsr.quorums(simulator.options.cluster.replica_count).view_change;
         var recoverable_count: usize = 0;
         for (simulator.cluster.replicas) |*replica| {
-            recoverable_count += @boolToInt(replica.status != .recovering_head);
+            recoverable_count +=
+                @boolToInt(replica.status != .recovering_head and !replica.standby());
         }
 
         for (simulator.cluster.replicas) |*replica| {
@@ -474,7 +475,7 @@ pub const Simulator = struct {
                         @as(f64, if (replica_writes == 0) 1.0 else 10.0);
                     if (!chance_f64(simulator.random, crash_probability)) continue;
 
-                    const fault = recoverable_count > recoverable_count_min;
+                    const fault = recoverable_count > recoverable_count_min or replica.standby();
                     replica.superblock.storage.faulty = fault;
 
                     if (!fault) {
@@ -493,10 +494,11 @@ pub const Simulator = struct {
                     }
 
                     log_simulator.debug("{}: crash replica (faults={})", .{ replica.replica, fault });
-                    simulator.cluster.crash_replica(replica.replica) catch unreachable;
+                    simulator.cluster.crash_replica(replica.replica);
                     replica.superblock.storage.faulty = true;
 
-                    recoverable_count -= @boolToInt(replica.status == .recovering_head);
+                    recoverable_count -=
+                        @boolToInt(replica.status == .recovering_head and !replica.standby());
                     assert(replica.status != .recovering_head or fault);
 
                     simulator.replica_stability[replica.replica] =
@@ -504,7 +506,7 @@ pub const Simulator = struct {
                 },
                 .down => {
                     if (chance_f64(simulator.random, simulator.options.replica_restart_probability)) {
-                        simulator.cluster.restart_replica(replica.replica);
+                        simulator.cluster.restart_replica(replica.replica) catch unreachable;
                         log_simulator.debug("{}: restart replica", .{replica.replica});
                         simulator.replica_stability[replica.replica] =
                             simulator.options.replica_restart_stability;
